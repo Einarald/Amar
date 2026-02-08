@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einar vs Amar: Remastered</title>
+    <title>Einar vs Amar: Island Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -12,6 +12,7 @@
             --bg-dark: #1a1a2e;
             --font-main: 'Fredoka One', cursive;
             --font-ui: 'Nunito', sans-serif;
+            --xp-color: #00BFFF;
         }
 
         body { 
@@ -44,7 +45,7 @@
             text-align: center;
         }
 
-        /* TEXTURE VIEWER */
+        /* TEXTURE VIEWER (LABORATORY) */
         .screen-clear {
             background: transparent;
             align-items: center; justify-content: space-between;
@@ -58,7 +59,16 @@
             text-shadow: 4px 4px 0px #000;
             margin: 0 0 10px 0; transform: rotate(-3deg);
             pointer-events: none;
+            position: relative;
         }
+
+        /* CROWN FOR LVL 100 */
+        #master-crown {
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%) rotate(3deg);
+            font-size: 50px; filter: drop-shadow(0 0 10px gold);
+            display: none; animation: floatCrown 2s infinite ease-in-out;
+        }
+        @keyframes floatCrown { 0%,100%{transform:translateX(-50%) translateY(0);} 50%{transform:translateX(-50%) translateY(-10px);} }
 
         /* MENU LAYOUT */
         .menu-content {
@@ -67,6 +77,7 @@
             pointer-events: none;
         }
 
+        /* MAP SELECTION */
         .card-container {
             display: flex; gap: 15px; overflow-x: auto; padding: 20px 10px;
             width: 100%; justify-content: center; box-sizing: border-box;
@@ -82,9 +93,14 @@
             cursor: pointer; display: flex; flex-direction: column; align-items: center;
             box-shadow: 0 10px 20px rgba(0,0,0,0.5);
             position: relative;
+            opacity: 1; filter: grayscale(0);
         }
+        .card.locked { opacity: 0.6; filter: grayscale(1); cursor: not-allowed; }
         .card.selected { border-color: var(--primary); transform: translateY(-5px); background: #33334d; }
         .card-icon { font-size: 30px; margin-bottom: 5px; }
+        .lock-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; color: #ff5252; text-shadow: 0 0 5px black; display: none; }
+        .card.locked .lock-icon { display: block; }
+        .lvl-req { font-size: 10px; color: #aaa; margin-top: 5px; font-weight: bold; }
 
         /* BUTTONS */
         .btn-container {
@@ -108,6 +124,24 @@
         .btn-small { padding: 10px 25px; font-size: 16px; }
         .btn-shop { background: linear-gradient(to bottom, #42A5F5, #1E88E5); color: white; box-shadow: 0 6px 0 #0D47A1; }
         .btn-tex { background: linear-gradient(to bottom, #E91E63, #C2185B); color: white; box-shadow: 0 6px 0 #880E4F; }
+
+        /* XP & LEVEL UI */
+        .xp-container {
+            width: 80%; max-width: 400px; background: rgba(0,0,0,0.5);
+            border-radius: 20px; padding: 5px; border: 2px solid #555;
+            margin: 10px 0; position: relative;
+        }
+        .xp-bar-fill {
+            height: 15px; background: linear-gradient(90deg, #00BFFF, #87CEFA);
+            border-radius: 10px; width: 0%; transition: width 1s ease-out;
+            box-shadow: 0 0 10px #00BFFF;
+        }
+        .level-badge {
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            font-family: var(--font-main); font-size: 24px; color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .star-icon { color: var(--xp-color); filter: drop-shadow(0 0 5px var(--xp-color)); font-size: 28px; }
 
         /* HUD */
         #hud { 
@@ -183,7 +217,7 @@
         }
         .shop-row h3 { margin: 0; color: var(--primary); font-family: var(--font-main); }
 
-        /* TEXTURES MENU */
+        /* TEXTURES MENU (LAB) UI */
         #tex-viewer {
             display: flex; flex-direction: column; align-items: center;
             width: 100%; height: 100%; pointer-events: none;
@@ -196,6 +230,8 @@
         .tex-info {
             background: rgba(0,0,0,0.7); padding: 20px; border-radius: 20px;
             max-width: 400px; margin-bottom: 20px; pointer-events: auto;
+            border: 1px solid rgba(0, 191, 255, 0.3); /* Tech border */
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.2);
         }
         .tex-info h2 { margin: 0 0 10px 0; color: var(--primary); }
         .tex-info p { margin: 0; color: #ddd; font-size: 18px; line-height: 1.4; }
@@ -206,6 +242,10 @@
         }
         #tex-back-btn { pointer-events: auto; margin-bottom: 20px; z-index: 20; }
 
+        /* END SCREEN ANIMATION */
+        .reward-pop { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from{transform:scale(0);} to{transform:scale(1);} }
+        
         #loader { background: #111; z-index: 100; color: var(--primary); font-family: var(--font-main); font-size: 24px; }
 
     </style>
@@ -223,8 +263,14 @@
     <!-- MAIN MENU -->
     <div id="menu" class="ui-layer screen interactive">
         <div class="menu-content">
-            <h1>Einar<br><span style="color:white; font-size:30px;">vs</span><br>Amar</h1>
-            <div style="margin-bottom: 10px; color: #aaa;">Survival Runner</div>
+            <h1>
+                <span id="master-crown">👑</span>
+                Einar<br><span style="color:white; font-size:30px;">vs</span><br>Amar
+            </h1>
+            
+            <div class="level-badge" style="margin-bottom:10px;">
+                <span class="star-icon" id="menu-star">★</span> <span id="menu-lvl">Lvl 1</span>
+            </div>
             
             <div class="card-container" id="map-select">
                 <!-- JS Populated -->
@@ -251,7 +297,7 @@
         <button class="btn btn-small" onclick="UI.toMenu()" style="margin-top:20px;">BACK</button>
     </div>
 
-    <!-- TEXTURES / SHOWCASE -->
+    <!-- TEXTURES / SHOWCASE (LABORATORY) -->
     <div id="textures" class="ui-layer screen-clear hidden">
         <div id="tex-touch-area"></div> 
         
@@ -279,11 +325,11 @@
         <div id="hud-center">00:00</div>
         <div style="display:flex; gap:10px;">
             <div class="stat-badge"><span style="color:#FFD700">●</span> <span id="hud-coins">0</span></div>
-            <div class="stat-badge" style="background:rgba(255,0,0,0.3); border-color:red"><span style="color:white">⚠</span> <span id="hud-timer">30</span></div>
+            <div class="stat-badge" style="background:rgba(255,0,0,0.3); border-color:red"><span style="color:white">⚠</span> <span id="hud-timer">60</span></div>
         </div>
     </div>
     
-    <div id="zone-warning" class="ui-layer">ZONE SHRINKING!</div>
+    <div id="zone-warning" class="ui-layer">ISLAND SHRINKING!</div>
 
     <!-- Controls -->
     <div id="controls" class="ui-layer hidden">
@@ -296,10 +342,24 @@
         </div>
     </div>
 
-    <!-- GAME OVER -->
+    <!-- GAME OVER / RESULTS -->
     <div id="gameover" class="ui-layer screen interactive hidden">
         <h1 style="color:#ff5252">EATEN!</h1>
         <h2 id="final-score" style="margin:0; color:white;">00:00</h2>
+        
+        <!-- Experience Animation -->
+        <div style="margin: 15px 0; width:100%; display:flex; flex-direction:column; align-items:center;">
+            <div id="xp-text" style="color:#00BFFF; font-weight:bold; margin-bottom:5px;">+0 XP</div>
+            <div class="xp-container">
+                <div class="xp-bar-fill" id="xp-bar"></div>
+            </div>
+            <div class="level-badge">
+                <span class="star-icon" id="res-star">★</span> <span id="res-lvl">1</span>
+            </div>
+            <div id="lvl-up-msg" style="color:#00FF00; font-family:var(--font-main); font-size:24px; margin-top:5px; display:none;" class="reward-pop">LEVEL UP!</div>
+            <div id="unlock-msg" style="color:orange; font-size:16px; margin-top:5px; display:none;" class="reward-pop">UNLOCKED: DESERT</div>
+        </div>
+
         <p>Rewards:</p>
         <div style="display:flex; gap:15px; justify-content:center; margin-bottom:20px;">
             <div class="stat-badge">+<span id="end-coins">0</span> ●</div>
@@ -328,7 +388,13 @@ const AudioSys = {
         coin: () => { AudioSys.playTone(1200, 'sine', 0.1, 0.1); setTimeout(()=>AudioSys.playTone(1800, 'sine', 0.2, 0.1), 50); },
         dash: () => AudioSys.playTone(300, 'sawtooth', 0.3, 0.1, 50),
         hit: () => AudioSys.playTone(100, 'square', 0.3, 0.2, 10),
-        step: () => AudioSys.playTone(80, 'triangle', 0.05, 0.02)
+        step: () => AudioSys.playTone(80, 'triangle', 0.05, 0.02),
+        parrot: () => AudioSys.playTone(1500, 'sawtooth', 0.1, 0.1, 1000),
+        levelup: () => { 
+            AudioSys.playTone(400, 'sine', 0.1, 0.2); 
+            setTimeout(()=>AudioSys.playTone(600, 'sine', 0.1, 0.2), 100);
+            setTimeout(()=>AudioSys.playTone(800, 'sine', 0.3, 0.2), 200);
+        }
     }
 };
 
@@ -347,7 +413,21 @@ const Assets = {
         miloLight: new THREE.MeshToonMaterial({color: 0xcccccc}),
         hair: new THREE.MeshToonMaterial({color: 0x5D4037}),
         eyeWhite: new THREE.MeshBasicMaterial({color: 0xFFFFFF}),
-        eyeBlack: new THREE.MeshBasicMaterial({color: 0x000000})
+        eyeBlack: new THREE.MeshBasicMaterial({color: 0x000000}),
+        
+        computerBeige: new THREE.MeshToonMaterial({color: 0xDDDDDD}),
+        screenBlack: new THREE.MeshToonMaterial({color: 0x111111, shininess: 100}),
+        chairBlue: new THREE.MeshToonMaterial({color: 0x1565C0}),
+        cactusGreen: new THREE.MeshToonMaterial({color: 0x66BB6A}),
+        parrotBlue: new THREE.MeshToonMaterial({color: 0x03A9F4}),
+        parrotWhite: new THREE.MeshToonMaterial({color: 0xFFFFFF}),
+        beakYellow: new THREE.MeshToonMaterial({color: 0xFFD600}),
+        
+        // LAB MATERIALS
+        metalDark: new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.4, metalness: 0.8}),
+        metalLight: new THREE.MeshStandardMaterial({color: 0x888888, roughness: 0.3, metalness: 0.9}),
+        holoBlue: new THREE.MeshBasicMaterial({color: 0x00BFFF, transparent: true, opacity: 0.3, side: THREE.DoubleSide}),
+        waterBlue: new THREE.MeshToonMaterial({color: 0x1E88E5, opacity: 0.8, transparent: false})
     },
     
     createPlayer() {
@@ -399,16 +479,10 @@ const Assets = {
         const earGeo = new THREE.ConeGeometry(0.1, 0.3, 4);
         const earL = new THREE.Mesh(earGeo, this.materials.dogMain); earL.position.set(0.15, 0.4, 0);
         const earR = earL.clone(); earR.position.set(-0.15, 0.4, 0); headGroup.add(earL, earR);
-        headGroup.add(earL, earR);
-
-        // Eyes for Amar
         const eyeGeo = new THREE.SphereGeometry(0.05, 8, 8);
-        const eyeL_Mesh = new THREE.Mesh(eyeGeo, this.materials.eyeBlack);
-        eyeL_Mesh.position.set(0.15, 0.1, 0.32);
-        const eyeR_Mesh = eyeL_Mesh.clone();
-        eyeR_Mesh.position.set(-0.15, 0.1, 0.32);
-        headGroup.add(eyeL_Mesh, eyeR_Mesh);
-
+        const eyeL = new THREE.Mesh(eyeGeo, this.materials.eyeBlack); eyeL.position.set(0.15, 0.1, 0.32);
+        const eyeR = eyeL.clone(); eyeR.position.set(-0.15, 0.1, 0.32);
+        headGroup.add(eyeL, eyeR);
         group.add(headGroup);
         const tail = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 4, 8, 3), this.materials.dogWhite);
         tail.position.set(0, 1.0, -0.7); tail.rotation.set(Math.PI/2, 0, -0.5); group.add(tail);
@@ -421,7 +495,7 @@ const Assets = {
         limbs.forEach(l => group.add(l));
         return { mesh: group, head: headGroup, limbs };
     },
-
+    
     createMilo() {
         const group = new THREE.Group();
         const grey = this.materials.miloGrey; const light = this.materials.miloLight;
@@ -433,19 +507,19 @@ const Assets = {
         snout.position.set(0, -0.05, 0.35); headGroup.add(snout);
         const beard = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.1), light);
         beard.position.set(0, -0.25, 0.35); headGroup.add(beard);
-        const earL = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 4), grey);
-        earL.position.set(0.15, 0.35, 0); earL.rotation.z = -0.2;
-        const earR = earL.clone(); earR.position.set(-0.15, 0.35, 0); earR.rotation.z = 0.2;
-        headGroup.add(earL, earR); 
-
-        // Eyes for Milo
+        
+        // NEW ROUND EARS (FLOPPY)
+        const earGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const earL = new THREE.Mesh(earGeo, grey);
+        earL.scale.set(1, 2, 0.5);
+        earL.position.set(0.22, 0.25, 0); earL.rotation.set(0, 0, -0.5); // Hang down
+        const earR = earL.clone(); 
+        earR.position.set(-0.22, 0.25, 0); earR.rotation.set(0, 0, 0.5);
+        
         const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
-        const eyeL_Mesh = new THREE.Mesh(eyeGeo, this.materials.eyeBlack);
-        eyeL_Mesh.position.set(0.12, 0.15, 0.38);
-        const eyeR_Mesh = eyeL_Mesh.clone();
-        eyeR_Mesh.position.set(-0.12, 0.15, 0.38);
-        headGroup.add(eyeL_Mesh, eyeR_Mesh);
-
+        const eyeL = new THREE.Mesh(eyeGeo, this.materials.eyeBlack); eyeL.position.set(0.12, 0.15, 0.38);
+        const eyeR = eyeL.clone(); eyeR.position.set(-0.12, 0.15, 0.38);
+        headGroup.add(earL, earR, eyeL, eyeR); 
         group.add(headGroup);
         const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3), grey);
         tail.position.set(0, 0.9, -0.6); tail.rotation.x = Math.PI/4; group.add(tail);
@@ -459,14 +533,109 @@ const Assets = {
         return { mesh: group, head: headGroup, limbs };
     },
 
+    createTimosha() {
+        const group = new THREE.Group();
+        const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.5, 8), this.materials.parrotBlue);
+        cylinder.position.y = 1.0; cylinder.castShadow = true; group.add(cylinder);
+        const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8, 0, Math.PI*2, 0, Math.PI/2), this.materials.parrotBlue);
+        topCap.position.y = 1.25; topCap.castShadow = true; group.add(topCap);
+        const botCap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8, 0, Math.PI*2, Math.PI/2, Math.PI/2), this.materials.parrotBlue);
+        botCap.position.y = 0.75; botCap.castShadow = true; group.add(botCap);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), this.materials.parrotWhite);
+        head.position.y = 1.4; group.add(head);
+        const beak = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 8), this.materials.beakYellow);
+        beak.rotation.x = -Math.PI/2; beak.position.set(0, 1.35, 0.25); group.add(beak);
+        const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const eyeL = new THREE.Mesh(eyeGeo, this.materials.eyeBlack); eyeL.position.set(0.1, 1.45, 0.18);
+        const eyeR = eyeL.clone(); eyeR.position.set(-0.1, 1.45, 0.18);
+        group.add(eyeL, eyeR);
+        const createWing = (x) => {
+            const pivot = new THREE.Group(); pivot.position.set(x, 1.1, 0);
+            const wing = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.6, 0.4), this.materials.parrotWhite);
+            wing.position.y = -0.2; pivot.add(wing); return pivot;
+        }
+        const wingL = createWing(0.3); const wingR = createWing(-0.3); group.add(wingL, wingR);
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.1), this.materials.parrotBlue);
+        tail.position.set(0, 0.7, -0.25); tail.rotation.x = 0.5; group.add(tail);
+        return { mesh: group, wings: [wingL, wingR] };
+    },
+
+    createCosmo() {
+        const group = new THREE.Group();
+        const grey = this.materials.miloGrey; const skin = this.materials.skin;
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), grey);
+        body.scale.set(1, 0.8, 1.2); body.position.y = 0.3; body.castShadow = true; group.add(body);
+        const earGeo = new THREE.SphereGeometry(0.1, 8, 8);
+        const earL = new THREE.Mesh(earGeo, skin); earL.position.set(0.25, 0.5, 0.1);
+        const earR = earL.clone(); earR.position.set(-0.25, 0.5, 0.1); group.add(earL, earR);
+        const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const eyeL = new THREE.Mesh(eyeGeo, this.materials.eyeBlack); eyeL.position.set(0.12, 0.35, 0.35);
+        const eyeR = eyeL.clone(); eyeR.position.set(-0.12, 0.35, 0.35); group.add(eyeL, eyeR);
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), skin); nose.position.set(0, 0.28, 0.42); group.add(nose);
+        const createLeg = (x, z) => {
+            const pivot = new THREE.Group(); pivot.position.set(x, 0.2, z);
+            const legMesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), skin);
+            legMesh.position.y = -0.1; legMesh.scale.set(0.8, 1, 0.8); pivot.add(legMesh); return pivot;
+        };
+        const legFL = createLeg(0.2, 0.2); const legFR = createLeg(-0.2, 0.2);
+        const legBL = createLeg(0.2, -0.2); const legBR = createLeg(-0.2, -0.2);
+        group.add(legFL, legFR, legBL, legBR);
+        return { mesh: group, limbs: [legFL, legFR, legBL, legBR] };
+    },
+    
+    createOfficeSetup() {
+        const group = new THREE.Group();
+        const desk = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1), this.materials.computerBeige); desk.position.y = 0.8; desk.castShadow = true;
+        const monitorStand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3), this.materials.screenBlack); monitorStand.position.set(0, 1.0, -0.2);
+        const monitor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.05), this.materials.screenBlack); monitor.position.set(0, 1.3, -0.2);
+        const chair = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), this.materials.chairBlue); chair.position.set(0, 0.5, 0.8);
+        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.1), this.materials.chairBlue); chairBack.position.set(0, 0.9, 1.1);
+        group.add(desk, monitorStand, monitor, chair, chairBack);
+        [[-0.9, -0.4], [0.9, -0.4], [-0.9, 0.4], [0.9, 0.4]].forEach(pos => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), this.materials.computerBeige);
+            leg.position.set(pos[0], 0.4, pos[1]); group.add(leg);
+        });
+        return group;
+    },
+    createCactus() {
+        const group = new THREE.Group();
+        const mainH = 1 + Math.random() * 2;
+        const main = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, mainH, 8), this.materials.cactusGreen);
+        main.position.y = mainH / 2; main.castShadow = true; group.add(main);
+        if (Math.random() > 0.5) {
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.8, 8), this.materials.cactusGreen);
+            arm.rotation.z = Math.PI / 2; arm.position.set(0.4, mainH * 0.6, 0);
+            const armUp = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6, 8), this.materials.cactusGreen);
+            armUp.position.set(0.8, mainH * 0.6 + 0.3, 0); group.add(arm, armUp);
+        }
+        return group;
+    },
+    createTumbleweed() {
+        const group = new THREE.Group();
+        for(let i=0; i<3; i++) {
+            const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.02, 3, 6), this.materials.wood);
+            hoop.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI); group.add(hoop);
+        }
+        return group;
+    },
     createTree() {
         const group = new THREE.Group();
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 1.5, 5), this.materials.wood);
-        trunk.position.y = 0.75; trunk.castShadow = true; group.add(trunk);
-        const leaves1 = new THREE.Mesh(new THREE.ConeGeometry(2, 2.5, 6), this.materials.tree);
-        leaves1.position.y = 2; leaves1.castShadow = true; group.add(leaves1);
-        const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2, 6), this.materials.tree);
-        leaves2.position.y = 3.2; group.add(leaves2);
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 1.5, 5), this.materials.wood); trunk.position.y = 0.75; trunk.castShadow = true; group.add(trunk);
+        const leaves1 = new THREE.Mesh(new THREE.ConeGeometry(2, 2.5, 6), this.materials.tree); leaves1.position.y = 2; leaves1.castShadow = true; group.add(leaves1);
+        const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2, 6), this.materials.tree); leaves2.position.y = 3.2; group.add(leaves2);
+        return group;
+    },
+
+    createLabEnvironment() {
+        const group = new THREE.Group();
+        const platform = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.2, 0.5, 32), this.materials.metalDark);
+        platform.position.y = -0.25; group.add(platform);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.05, 16, 64), new THREE.MeshBasicMaterial({color: 0x00BFFF}));
+        ring.rotation.x = -Math.PI/2; ring.position.y = 0; group.add(ring);
+        const scanRing = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 0.1, 32, 1, true), this.materials.holoBlue);
+        scanRing.position.y = 1; 
+        group.userData = { scanRing: scanRing, time: 0 };
+        group.add(scanRing);
         return group;
     }
 };
@@ -474,36 +643,41 @@ const Assets = {
 const Game = {
     state: 'init',
     maps: {
-        forest: { name: "Forest", color: 0x4CAF50, bg: 0x81C784, friction: 0.8 },
-        desert: { name: "Desert", color: 0xFFB74D, bg: 0xFFE0B2, friction: 0.8 },
-        ice: { name: "Arctic", color: 0xB3E5FC, bg: 0xE1F5FE, friction: 0.89 },
-        studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.8 }
+        forest: { name: "Forest", color: 0x4CAF50, bg: 0x81C784, friction: 0.8, levelReq: 0 },
+        desert: { name: "Desert", color: 0xFFB74D, bg: 0xFFE0B2, friction: 0.8, levelReq: 10 },
+        ice: { name: "Arctic", color: 0xB3E5FC, bg: 0xE1F5FE, friction: 0.85, levelReq: 25 }, 
+        studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.8, levelReq: 55 }
     },
     
     scene: null, camera: null, renderer: null, clock: new THREE.Clock(),
     player: null, enemies: [], coins: [], props: [],
+    ground: null, water: null,
     currentMap: 'forest',
     joystick: { x: 0, y: 0, active: false },
     keys: { w: false, a: false, s: false, d: false },
-    zone: { radius: 120, target: 120, mesh: null, time: 30 },
-    stats: { coins: 0, gems: 0, time: 0 },
+    zone: { radius: 120, target: 120, mesh: null, time: 60 },
+    stats: { coins: 0, gems: 0, time: 0, xp: 0 },
     upgrades: { speed: 0, hp: 0, agility: 0 },
     
-    textureIdx: 0, textureModel: null,
+    textureIdx: 0, textureModel: null, labEnvironment: null,
     textureData: [
-        { name: "Einar", desc: "A brave traveler. His main goal is to survive and collect all coins.", create: () => Assets.createPlayer() },
-        { name: "Amar", desc: "Main antagonist. Breed: Basenji. Incredibly fast.", create: () => Assets.createAmar() },
-        { name: "Milo", desc: "Amar's loyal partner. Appears rarely but strikes hard.", create: () => Assets.createMilo() }
+        { name: "Einar", desc: "A brave traveler.", create: () => Assets.createPlayer() },
+        { name: "Amar", desc: "Main antagonist. Basenji.", create: () => Assets.createAmar() },
+        { name: "Milo", desc: "Loyal partner.", create: () => Assets.createMilo() },
+        { name: "Timosha", desc: "Rare blue parrot.", create: () => Assets.createTimosha() },
+        { name: "Cosmo", desc: "Fast hamster.", create: () => Assets.createCosmo() }
     ],
 
     init() {
-        const save = localStorage.getItem('einar_save_v2');
+        const save = localStorage.getItem('einar_save_v18');
         if(save) {
             const d = JSON.parse(save);
             this.stats.coins = d.coins || 0;
             this.stats.gems = d.gems || 0;
+            this.stats.xp = d.xp || 0;
             this.upgrades = d.upgrades || {speed:0, hp:0, agility:0};
         }
+        
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
         this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: false});
@@ -523,36 +697,49 @@ const Game = {
         this.animate();
     },
 
-    // HELPER TO FIX LIGHTING BUG
+    getLevel(xp) { return Math.floor(xp / 1000) + 1; },
+    
+    getLevelColor(lvl) {
+        if(lvl >= 100) return '#FF0000'; // Max
+        if(lvl >= 75) return '#9D00FF'; // Cosmic
+        if(lvl >= 50) return '#B9F2FF'; // Diamond
+        if(lvl >= 30) return '#E5E4E2'; // Platinum
+        if(lvl >= 20) return '#FFD700'; // Gold
+        if(lvl >= 10) return '#C0C0C0'; // Silver
+        return '#CD7F32'; // Bronze
+    },
+
+    save() {
+        localStorage.setItem('einar_save_v18', JSON.stringify({ 
+            coins: this.stats.coins, 
+            gems: this.stats.gems, 
+            xp: this.stats.xp,
+            upgrades: this.upgrades 
+        }));
+        UI.updateLevelDisplay();
+    },
+
     addLights(isGame = false) {
-        // Balanced lighting to bring back atmosphere without black screen
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7); // Reduced intensity
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7);
         hemiLight.position.set(0, 20, 0);
         this.scene.add(hemiLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); // Reduced intensity for better shadows
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(10, 30, 20);
         dirLight.castShadow = true;
-        
         if(isGame) {
-            dirLight.shadow.mapSize.width = 2048;
-            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
             dirLight.shadow.camera.left = -60; dirLight.shadow.camera.right = 60;
             dirLight.shadow.camera.top = 60; dirLight.shadow.camera.bottom = -60;
         } else {
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.mapSize.width = 1024; dirLight.shadow.mapSize.height = 1024;
         }
         this.scene.add(dirLight);
-
-        const amb = new THREE.AmbientLight(0x404040, 0.4); // Subtle ambient
-        this.scene.add(amb);
+        this.scene.add(new THREE.AmbientLight(0x404040, 0.4));
     },
 
     loadMenuScene() {
         this.clearScene();
         this.addLights(false); 
-
         this.scene.background = new THREE.Color(0x1a1a2e);
         this.scene.fog = null;
         const menuFloor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshToonMaterial({color: 0x222233}));
@@ -564,6 +751,7 @@ const Game = {
         this.menuAnim = { player: p, enemy: a, time: 0 };
         this.camera.position.set(0, 3, 8);
         this.camera.lookAt(0, 1.5, 0);
+        UI.updateLevelDisplay();
     },
 
     start() {
@@ -579,21 +767,23 @@ const Game = {
         this.stats.time = 0;
         const map = this.maps[this.currentMap];
         this.scene.background = new THREE.Color(map.bg);
-        // Restored FOG but starting closer (40) and fading out (140) to fix "no fog" complaint
         this.scene.fog = new THREE.Fog(map.bg, 40, 140); 
         
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshToonMaterial({color: map.color}));
-        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; this.scene.add(ground);
+        // Island (Circular Ground)
+        this.zone.radius = 120; this.zone.target = 120; this.zone.time = 60;
+        const groundGeo = new THREE.CylinderGeometry(1, 1, 1, 64);
+        this.ground = new THREE.Mesh(groundGeo, new THREE.MeshToonMaterial({color: map.color}));
+        this.ground.position.y = -0.5; 
+        this.ground.scale.set(this.zone.radius, 1, this.zone.radius);
+        this.ground.receiveShadow = true; 
+        this.scene.add(this.ground);
+
+        // Water (Surrounding Plane)
+        this.water = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), Assets.materials.waterBlue);
+        this.water.rotation.x = -Math.PI/2;
+        this.water.position.y = -0.55; 
+        this.scene.add(this.water);
         
-        // Grid made subtle
-        const grid = new THREE.GridHelper(400, 100, 0x000000, 0x000000);
-        grid.material.opacity = 0.05; grid.material.transparent = true; this.scene.add(grid);
-        
-        this.zone.radius = 120; this.zone.target = 120; this.zone.time = 30;
-        const ringGeo = new THREE.RingGeometry(0.5, 1, 128);
-        const ringMat = new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.2, side: THREE.DoubleSide});
-        this.zone.mesh = new THREE.Mesh(ringGeo, ringMat);
-        this.zone.mesh.rotation.x = -Math.PI/2; this.zone.mesh.position.y = 0.1; this.scene.add(this.zone.mesh);
         const pObj = Assets.createPlayer();
         this.player = {
             mesh: pObj.mesh, limbs: pObj.limbs,
@@ -602,46 +792,70 @@ const Game = {
             invuln: 0, dashCd: 0
         };
         this.scene.add(this.player.mesh);
-        const propCount = this.currentMap === 'studio' ? 40 : 100;
+        
+        const propCount = this.currentMap === 'studio' ? 25 : 80;
         for(let i=0; i<propCount; i++) {
-            const x = (Math.random()-0.5)*200; const z = (Math.random()-0.5)*200;
-            if(Math.hypot(x,z) < 10) continue;
-            let mesh;
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.sqrt(Math.random()) * (this.zone.radius - 5);
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            
+            let mesh, radius = 1.5; let isTumbleweed = false;
+            
             if(this.currentMap === 'forest') mesh = Assets.createTree();
+            else if(this.currentMap === 'studio') {
+                mesh = Assets.createOfficeSetup(); mesh.rotation.y = Math.random() * Math.PI * 2;
+                mesh.scale.set(1.5, 1.5, 1.5); radius = 2.5; 
+            }
+            else if(this.currentMap === 'desert') {
+                if(Math.random() < 0.2) { mesh = Assets.createTumbleweed(); isTumbleweed = true; radius = 0.5; mesh.position.y = 0.5; } 
+                else { mesh = Assets.createCactus(); }
+            }
             else mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1 + Math.random()), new THREE.MeshToonMaterial({color:0x777777}));
-            mesh.position.set(x, this.currentMap!=='forest'?1:0, z);
-            mesh.rotation.y = Math.random() * Math.PI; this.scene.add(mesh);
-            this.props.push({mesh, r: 1.5});
+            
+            if(!isTumbleweed) {
+                mesh.position.set(x, this.currentMap!=='forest' && this.currentMap!=='studio' && this.currentMap!=='desert' ? 1 : 0, z);
+                if(this.currentMap === 'forest' || this.currentMap === 'desert') mesh.rotation.y = Math.random() * Math.PI;
+            } else { mesh.position.set(x, 0.5, z); }
+            
+            this.scene.add(mesh);
+            this.props.push({mesh, r: radius, isTumbleweed, vel: isTumbleweed ? new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize().multiplyScalar(5) : null});
         }
         UI.updateHUD();
     },
 
     spawnEnemy() {
-        const angle = Math.random() * Math.PI * 2; const r = 60;
-        const x = this.player.pos.x + Math.cos(angle) * r;
-        const z = this.player.pos.z + Math.sin(angle) * r;
-        const isMilo = Math.random() < 0.3;
-        const obj = isMilo ? Assets.createMilo() : Assets.createAmar();
+        const angle = Math.random() * Math.PI * 2; const r = this.zone.radius * 0.9; // Spawn slightly inside
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        let type = 'amar'; const rand = Math.random();
+        
+        if (rand < 0.10) { if(this.currentMap === 'ice' || this.currentMap === 'studio') type = 'cosmo'; }
+        else if (rand < 0.25) { if(this.currentMap !== 'ice') type = 'timosha'; }
+        else if (rand < 0.55) type = 'milo';
+
+        let obj, speed;
+        if(type === 'cosmo') { obj = Assets.createCosmo(); speed = 6.3 + Math.min(this.stats.time/30, 4); }
+        else if(type === 'timosha') { obj = Assets.createTimosha(); speed = 8.73 + Math.min(this.stats.time/30, 6); }
+        else if(type === 'milo') { obj = Assets.createMilo(); speed = 9.5 + Math.min(this.stats.time/30, 6); }
+        else { obj = Assets.createAmar(); speed = 9.0 + Math.min(this.stats.time/30, 6); }
+        
         obj.mesh.position.set(x, 0, z); this.scene.add(obj.mesh);
         this.enemies.push({
-            mesh: obj.mesh, head: obj.head, limbs: obj.limbs,
-            vel: new THREE.Vector3(), speed: (isMilo?9.5:9.0) + Math.min(this.stats.time/30, 6)
+            mesh: obj.mesh, head: obj.head, limbs: obj.limbs, wings: obj.wings,
+            vel: new THREE.Vector3(), speed: speed, type: type, animOffset: Math.random() * 10
         });
+        if(type === 'timosha') AudioSys.sfx.parrot();
     },
 
     spawnCoin() {
-        const rad = Math.max(20, this.zone.radius * 0.9);
-        const angle = Math.random() * Math.PI * 2; const dist = Math.sqrt(Math.random()) * rad;
+        const angle = Math.random() * Math.PI * 2; 
+        const dist = Math.sqrt(Math.random()) * (this.zone.radius * 0.9);
         const x = Math.cos(angle) * dist; const z = Math.sin(angle) * dist;
         const isGem = Math.random() < 0.1;
         let mesh;
-        if (isGem) {
-            mesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 4), Assets.materials.gem);
-            mesh.rotation.x = Math.PI;
-        } else {
-            mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.15, 16), Assets.materials.coin);
-            mesh.rotation.x = Math.PI/2;
-        }
+        if (isGem) { mesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 4), Assets.materials.gem); mesh.rotation.x = Math.PI; } 
+        else { mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.15, 16), Assets.materials.coin); mesh.rotation.x = Math.PI/2; }
         mesh.position.set(x, 1, z); this.scene.add(mesh);
         this.coins.push({mesh, isGem, active: true});
     },
@@ -649,16 +863,16 @@ const Game = {
     loadShowcase(idx) {
         this.state = 'textures';
         this.clearScene();
-        this.addLights(false); 
+        // Lab Lighting - FIX: White light to show true colors
+        const amb = new THREE.AmbientLight(0xffffff, 0.8); this.scene.add(amb);
+        const spot = new THREE.SpotLight(0xffffff, 1.5); spot.position.set(5, 10, 5); spot.castShadow = true; this.scene.add(spot);
+        // Dim blue rim light for atmosphere only
+        const blueLight = new THREE.PointLight(0x00BFFF, 0.5, 10); blueLight.position.set(0, 2, -2); this.scene.add(blueLight);
 
-        this.scene.background = new THREE.Color(0x333333); 
-        this.scene.fog = null; 
+        this.scene.background = new THREE.Color(0x050510);
         
-        const spot = new THREE.SpotLight(0xffffff, 1.0);
-        spot.position.set(5, 10, 5); spot.castShadow = true; this.scene.add(spot);
-        
-        const floor = new THREE.Mesh(new THREE.CircleGeometry(4, 32), new THREE.MeshToonMaterial({color: 0x555555}));
-        floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; this.scene.add(floor);
+        this.labEnvironment = Assets.createLabEnvironment();
+        this.scene.add(this.labEnvironment);
 
         const data = this.textureData[idx];
         const obj = data.create();
@@ -666,8 +880,8 @@ const Game = {
         this.textureModel.position.set(0, 0, 0);
         this.scene.add(this.textureModel);
 
-        this.camera.position.set(0, 2.5, 6);
-        this.camera.lookAt(0, 1.5, 0);
+        this.camera.position.set(0, 2, 5);
+        this.camera.lookAt(0, 1, 0);
 
         document.getElementById('tex-name').innerText = data.name;
         document.getElementById('tex-title').innerText = data.name;
@@ -681,24 +895,22 @@ const Game = {
         this.loadShowcase(this.textureIdx);
     },
 
-    onTextureDrag(dx) {
-        if(this.textureModel) this.textureModel.rotation.y += dx * 0.01;
-    },
+    onTextureDrag(dx) { if(this.textureModel) this.textureModel.rotation.y += dx * 0.01; },
 
     update(dt) {
-        if(this.state === 'textures') { this.scene.fog = null; return; }
+        if(this.state === 'textures' && this.labEnvironment) {
+            this.labEnvironment.userData.time += dt;
+            this.labEnvironment.userData.scanRing.position.y = 1 + Math.sin(this.labEnvironment.userData.time * 2) * 1;
+            this.labEnvironment.userData.scanRing.scale.setScalar(1 + Math.sin(this.labEnvironment.userData.time * 2) * 0.2);
+            return; 
+        }
 
         if(this.state === 'menu') {
-            this.menuAnim.time += dt * 10;
-            const t = this.menuAnim.time;
+            this.menuAnim.time += dt * 10; const t = this.menuAnim.time;
             const pLimbs = this.menuAnim.player.limbs;
             pLimbs.legL.rotation.x = Math.sin(t) * 0.8; pLimbs.legR.rotation.x = Math.sin(t + Math.PI) * 0.8;
             pLimbs.armL.rotation.x = Math.sin(t + Math.PI) * 0.8; pLimbs.armR.rotation.x = Math.sin(t) * 0.8;
-            const eLimbs = this.menuAnim.enemy.limbs;
-            eLimbs[0].rotation.x = Math.sin(t) * 0.6; eLimbs[1].rotation.x = Math.sin(t + Math.PI) * 0.6;
-            eLimbs[2].rotation.x = Math.sin(t + Math.PI) * 0.6; eLimbs[3].rotation.x = Math.sin(t) * 0.6;
             this.menuAnim.player.mesh.position.y = Math.abs(Math.sin(t)) * 0.1;
-            this.menuAnim.enemy.mesh.position.y = Math.abs(Math.sin(t)) * 0.1;
             return;
         }
 
@@ -708,15 +920,17 @@ const Game = {
         const secs = Math.floor(this.stats.time % 60).toString().padStart(2, '0');
         document.getElementById('hud-center').innerText = `${mins}:${secs}`;
 
+        // Shrinking Logic
         this.zone.time -= dt;
         if(this.zone.time <= 0) {
-            this.zone.target = Math.max(30, this.zone.radius * 0.8);
-            this.zone.time = 30;
+            const shrink = 0.1 + Math.random() * 0.1; // 10-20%
+            this.zone.target = Math.max(30, this.zone.radius * (1 - shrink));
+            this.zone.time = 60; // Reset to 60s
             document.getElementById('zone-warning').style.opacity = 1;
             setTimeout(()=>document.getElementById('zone-warning').style.opacity=0, 3000);
         }
         this.zone.radius += (this.zone.target - this.zone.radius) * dt * 0.5;
-        this.zone.mesh.scale.set(this.zone.radius, this.zone.radius, 1);
+        this.ground.scale.set(this.zone.radius, 1, this.zone.radius); // Scale Island
 
         const desiredEnemies = Math.floor(this.stats.time / 10) + 1;
         if(this.enemies.length < desiredEnemies && this.stats.time > 3) this.spawnEnemy();
@@ -740,6 +954,11 @@ const Game = {
         const frictionFactor = Math.pow(map.friction, dt * 60);
         p.vel.multiplyScalar(frictionFactor);
         
+        // Island Bound Collision
+        if(p.pos.length() > this.zone.radius) {
+            p.pos.normalize().multiplyScalar(this.zone.radius);
+            p.vel.multiplyScalar(0.5); // Slow down on hit
+        }
         p.mesh.position.copy(p.pos);
 
         const speed = p.vel.length(); const animTime = this.stats.time * 15;
@@ -748,12 +967,16 @@ const Game = {
             p.limbs.armL.rotation.x = Math.sin(animTime + Math.PI) * 0.8; p.limbs.armR.rotation.x = Math.sin(animTime) * 0.8;
         } else { p.limbs.legL.rotation.x = 0; p.limbs.legR.rotation.x = 0; }
 
-        if(p.pos.length() > this.zone.radius) { if(Math.random() < 0.1) this.takeDamage(); }
         this.props.forEach(prop => {
-            const d = p.pos.distanceTo(prop.mesh.position);
-            if(d < prop.r) {
-                const push = p.pos.clone().sub(prop.mesh.position).normalize().multiplyScalar(prop.r - d);
-                p.pos.add(push); p.mesh.position.copy(p.pos);
+            if(prop.isTumbleweed) {
+                 prop.mesh.position.add(prop.vel.clone().multiplyScalar(dt));
+                 prop.mesh.rotation.z -= dt * 5; prop.mesh.rotation.x -= dt * 3;
+                 if(prop.mesh.position.length() > this.zone.radius) prop.vel.multiplyScalar(-1);
+            }
+            const dx = p.pos.x - prop.mesh.position.x; const dz = p.pos.z - prop.mesh.position.z; const dist = Math.hypot(dx, dz);
+            if(dist < prop.r) {
+                const angle = Math.atan2(dz, dx); const pushDist = prop.r - dist;
+                p.pos.x += Math.cos(angle) * pushDist; p.pos.z += Math.sin(angle) * pushDist; p.mesh.position.copy(p.pos);
             }
         });
 
@@ -767,13 +990,28 @@ const Game = {
             });
             e.mesh.position.add(dir.multiplyScalar(e.speed * dt));
             e.mesh.lookAt(p.pos);
-            e.mesh.position.y = Math.abs(Math.sin(this.stats.time * 10)) * 0.2;
-            if(e.limbs) {
-                const legSpeed = this.stats.time * 20;
-                e.limbs[0].rotation.x = Math.sin(legSpeed) * 0.5; e.limbs[1].rotation.x = Math.sin(legSpeed + Math.PI) * 0.5;
-                e.limbs[2].rotation.x = Math.sin(legSpeed + Math.PI) * 0.5; e.limbs[3].rotation.x = Math.sin(legSpeed) * 0.5;
+            const localTime = this.stats.time + e.animOffset;
+            
+            if(e.type === 'cosmo') {
+                e.mesh.position.y = Math.abs(Math.sin(localTime * 15)) * 0.5;
+                if(e.limbs) {
+                    const runSpeed = localTime * 30;
+                    e.limbs[0].rotation.x = Math.sin(runSpeed) * 0.8; e.limbs[1].rotation.x = Math.sin(runSpeed + Math.PI) * 0.8;
+                    e.limbs[2].rotation.x = Math.sin(runSpeed + Math.PI) * 0.8; e.limbs[3].rotation.x = Math.sin(runSpeed) * 0.8;
+                }
+            } else if(e.type === 'timosha') {
+                e.mesh.position.y = 1.5 + Math.sin(localTime * 10) * 0.3; 
+                if(e.wings) { e.wings[0].rotation.z = Math.sin(localTime * 25) * 0.5 + 0.5; e.wings[1].rotation.z = -Math.sin(localTime * 25) * 0.5 - 0.5; }
+                if(Math.hypot(p.pos.x - e.mesh.position.x, p.pos.z - e.mesh.position.z) < 4.0) e.mesh.position.add(dir.multiplyScalar(dt * 3)); 
+            } else {
+                e.mesh.position.y = Math.abs(Math.sin(localTime * 10)) * 0.2;
+                if(e.limbs) {
+                    const legSpeed = localTime * 20;
+                    e.limbs[0].rotation.x = Math.sin(legSpeed) * 0.5; e.limbs[1].rotation.x = Math.sin(legSpeed + Math.PI) * 0.5;
+                    e.limbs[2].rotation.x = Math.sin(legSpeed + Math.PI) * 0.5; e.limbs[3].rotation.x = Math.sin(legSpeed) * 0.5;
+                }
             }
-            if(e.mesh.position.distanceTo(p.pos) < 1.0) { this.takeDamage(); e.mesh.position.sub(dir.multiplyScalar(3)); }
+            if(Math.hypot(p.pos.x - e.mesh.position.x, p.pos.z - e.mesh.position.z) < 1.0) { this.takeDamage(); e.mesh.position.sub(dir.multiplyScalar(3)); }
         }
 
         this.coins.forEach((c, idx) => {
@@ -784,6 +1022,7 @@ const Game = {
             if(dist < 1) {
                 c.active = false; this.scene.remove(c.mesh); this.coins.splice(idx, 1);
                 AudioSys.sfx.coin(); if(c.isGem) this.stats.gems++; else this.stats.coins++;
+                this.save();
                 UI.updateHUD();
             }
         });
@@ -818,7 +1057,51 @@ const Game = {
     gameOver() {
         this.state = 'gameover'; UI.showHUD(false); UI.setScreen('gameover');
         this.stats.coins += this.coins.filter(c=>!c.active).length;
-        localStorage.setItem('einar_save_v2', JSON.stringify({ coins: this.stats.coins, gems: this.stats.gems, upgrades: this.upgrades }));
+        
+        // --- EXPERIENCE LOGIC ---
+        const xpEarned = Math.floor(this.stats.time * 10);
+        const oldLevel = this.getLevel(this.stats.xp);
+        this.stats.xp = Math.min(100000, this.stats.xp + xpEarned);
+        const newLevel = this.getLevel(this.stats.xp);
+        
+        // Reset animation UI
+        document.getElementById('xp-text').innerText = `+${xpEarned} XP`;
+        document.getElementById('xp-bar').style.width = '0%';
+        document.getElementById('res-lvl').innerText = oldLevel;
+        document.getElementById('res-star').style.color = this.getLevelColor(oldLevel);
+        document.getElementById('lvl-up-msg').style.display = 'none';
+        document.getElementById('unlock-msg').style.display = 'none';
+
+        // Animate XP Bar
+        const progress = (this.stats.xp % 1000) / 10; // 0-100%
+        setTimeout(() => {
+            document.getElementById('xp-bar').style.width = `${progress}%`;
+            // Check Level Up
+            if(newLevel > oldLevel) {
+                setTimeout(() => {
+                    AudioSys.sfx.levelup();
+                    document.getElementById('res-lvl').innerText = newLevel;
+                    document.getElementById('res-star').style.color = this.getLevelColor(newLevel);
+                    document.getElementById('lvl-up-msg').style.display = 'block';
+                    this.stats.gems += (newLevel - oldLevel); // +1 Gem per level
+                    
+                    // Check Unlocks
+                    let unlockText = "";
+                    if(oldLevel < 10 && newLevel >= 10) unlockText = "UNLOCKED: DESERT";
+                    else if(oldLevel < 25 && newLevel >= 25) unlockText = "UNLOCKED: ARCTIC";
+                    else if(oldLevel < 55 && newLevel >= 55) unlockText = "UNLOCKED: STUDIO";
+                    
+                    if(unlockText) {
+                        const msg = document.getElementById('unlock-msg');
+                        msg.innerText = unlockText;
+                        msg.style.display = 'block';
+                    }
+                }, 1000);
+            }
+        }, 100);
+
+        this.save();
+
         document.getElementById('end-coins').innerText = this.stats.coins;
         document.getElementById('end-gems').innerText = this.stats.gems;
         const mins = Math.floor(this.stats.time / 60).toString().padStart(2, '0');
@@ -875,12 +1158,8 @@ const Game = {
         let isDrag = false; let lastX = 0;
         texArea.addEventListener('mousedown', (e) => { isDrag = true; lastX = e.clientX; });
         texArea.addEventListener('touchstart', (e) => { isDrag = true; lastX = e.touches[0].clientX; });
-        window.addEventListener('mousemove', (e) => {
-            if(isDrag) { Game.onTextureDrag(e.clientX - lastX); lastX = e.clientX; }
-        });
-        window.addEventListener('touchmove', (e) => {
-            if(isDrag) { Game.onTextureDrag(e.touches[0].clientX - lastX); lastX = e.touches[0].clientX; }
-        });
+        window.addEventListener('mousemove', (e) => { if(isDrag) { Game.onTextureDrag(e.clientX - lastX); lastX = e.clientX; } });
+        window.addEventListener('touchmove', (e) => { if(isDrag) { Game.onTextureDrag(e.touches[0].clientX - lastX); lastX = e.touches[0].clientX; } });
         window.addEventListener('mouseup', () => isDrag = false);
         window.addEventListener('touchend', () => isDrag = false);
     },
@@ -890,21 +1169,49 @@ const Game = {
 
 const UI = {
     init() {
+        this.updateMapSelection();
+        this.updateShop();
+        this.updateLevelDisplay();
+    },
+    updateLevelDisplay() {
+        const lvl = Game.getLevel(Game.stats.xp);
+        document.getElementById('menu-lvl').innerText = `Lvl ${lvl}`;
+        const color = Game.getLevelColor(lvl);
+        document.getElementById('menu-star').style.color = color;
+        document.getElementById('menu-star').style.filter = `drop-shadow(0 0 5px ${color})`;
+        
+        if(lvl >= 100) document.getElementById('master-crown').style.display = 'block';
+        else document.getElementById('master-crown').style.display = 'none';
+        
+        // Refresh map locks
+        this.updateMapSelection();
+    },
+    updateMapSelection() {
         const mapCont = document.getElementById('map-select');
         mapCont.innerHTML = '';
+        const currentLvl = Game.getLevel(Game.stats.xp);
+        
         Object.keys(Game.maps).forEach(k => {
             const m = Game.maps[k];
+            const locked = currentLvl < m.levelReq;
+            
             const div = document.createElement('div');
-            div.className = `card ${k==='forest'?'selected':''}`;
-            div.innerHTML = `<div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':'🏢'}</div><div>${m.name}</div>`;
+            div.className = `card ${k===Game.currentMap?'selected':''} ${locked?'locked':''}`;
+            div.innerHTML = `
+                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':'🏢'}</div>
+                <div>${m.name}</div>
+                <div class="lock-icon">🔒</div>
+                ${locked ? `<div class="lvl-req">LVL ${m.levelReq}</div>` : ''}
+            `;
+            
             div.onclick = () => {
+                if(locked) return;
                 document.querySelectorAll('.card').forEach(c=>c.classList.remove('selected'));
                 div.classList.add('selected');
                 Game.currentMap = k;
             };
             mapCont.appendChild(div);
         });
-        this.updateShop();
     },
     setScreen(id) {
         document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
@@ -931,7 +1238,7 @@ const UI = {
         document.getElementById('shop-gems').innerText = Game.stats.gems;
         const list = document.getElementById('shop-list'); list.innerHTML = '';
         const upgrades = [
-            { id: 'speed', name: 'Speed', desc: 'Run faster', cost: l => 25 * (l+1), curr: 'coins', max: 5 },
+            { id: 'speed', name: 'Speed', desc: 'Run faster', cost: l => 100 * (l+1), curr: 'coins', max: 5 },
             { id: 'hp', name: 'Health', desc: 'More hearts', cost: l => 5 + (l*2), curr: 'gems', max: 3 }
         ];
         upgrades.forEach(u => {
@@ -948,7 +1255,7 @@ const UI = {
         const lvl = Game.upgrades[id]; const cost = upg.cost(lvl);
         if(Game.stats[upg.curr] >= cost) {
             Game.stats[upg.curr] -= cost; Game.upgrades[id]++; AudioSys.sfx.coin();
-            localStorage.setItem('einar_save_v2', JSON.stringify({ coins: Game.stats.coins, gems: Game.stats.gems, upgrades: Game.upgrades }));
+            Game.save();
             this.updateShop();
         }
     }
