@@ -52,6 +52,69 @@
             text-align: center;
         }
 
+        /* CUSTOMIZE SCREEN (New Layout) */
+        #customize {
+            background: transparent; /* No blur/darkness as requested */
+            flex-direction: row;
+            align-items: stretch;
+            justify-content: flex-start;
+        }
+        
+        .cust-left-panel {
+            width: 350px;
+            max-width: 40%;
+            background: rgba(0,0,0,0.8);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            pointer-events: auto;
+            overflow-y: auto;
+            border-right: 2px solid var(--primary);
+        }
+
+        .cust-right-area {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            pointer-events: auto; /* For rotation */
+        }
+
+        .cust-tabs {
+            display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 15px;
+        }
+        
+        .cust-tab-btn {
+            background: #333; border: 1px solid #555; color: #aaa;
+            padding: 8px 12px; border-radius: 8px; cursor: pointer;
+            font-family: var(--font-main); font-size: 14px;
+        }
+        .cust-tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+
+        .color-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 20px;
+        }
+        .color-item {
+            aspect-ratio: 1; border-radius: 50%; border: 2px solid #555; cursor: pointer;
+            position: relative; box-shadow: 0 4px 5px rgba(0,0,0,0.5);
+        }
+        .color-item.locked::after {
+            content: '🔒'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px;
+        }
+        .color-item.selected { border-color: white; transform: scale(1.1); }
+
+        .slots-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: auto;
+        }
+        .slot-card {
+            background: #222; border: 2px solid #444; border-radius: 10px;
+            padding: 5px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+        }
+        .slot-card.active { border-color: var(--primary); }
+        .slot-img { width: 100%; aspect-ratio: 1; background: #111; border-radius: 5px; margin-bottom: 5px; object-fit: cover; }
+        .slot-name { font-size: 12px; color: #ccc; width: 100%; border: none; background: transparent; text-align: center; }
+
         h1 {
             font-family: var(--font-main);
             font-size: 48px; color: var(--primary);
@@ -216,6 +279,11 @@
             display: flex; justify-content: space-between; align-items: center; text-align: left;
         }
         .shop-row h3 { margin: 0; color: var(--primary); font-family: var(--font-main); }
+        #best-run-display {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px; border-radius: 10px;
+            margin-bottom: 10px; font-weight: bold; color: #ffeb3b;
+        }
 
         /* TEXTURES MENU (LAB) UI */
         #tex-viewer {
@@ -240,7 +308,19 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 5; pointer-events: auto; cursor: grab;
         }
-        #tex-back-btn { pointer-events: auto; margin-bottom: 20px; z-index: 20; }
+        /* Fixed sizing for buttons */
+        #tex-back-btn, #customize-btn { pointer-events: auto; margin-bottom: 10px; z-index: 20; }
+        
+        /* Modal */
+        #modal {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8); z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #2a2a3e; padding: 20px; border-radius: 15px; border: 2px solid var(--primary);
+            text-align: center; max-width: 80%;
+        }
 
         /* END SCREEN ANIMATION */
         .reward-pop { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -252,6 +332,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+    
+    <audio id="bgm" loop>
+        <source src="amar.mp3" type="audio/mpeg">
+    </audio>
 
     <div id="game-canvas"></div>
 
@@ -289,6 +373,7 @@
     <!-- SHOP -->
     <div id="shop" class="ui-layer screen interactive hidden">
         <h2>SHOP</h2>
+        <div id="best-run-display">Best Run: None</div>
         <div style="display:flex; gap:20px; margin-bottom:20px;">
             <div class="stat-badge"><span style="color:#FFD700">●</span> <span id="shop-coins">0</span></div>
             <div class="stat-badge"><span style="color:#00FFFF">♦</span> <span id="shop-gems">0</span></div>
@@ -312,7 +397,55 @@
                     <h2 id="tex-title">Einar</h2>
                     <p id="tex-desc">Description...</p>
                 </div>
-                <button id="tex-back-btn" class="btn btn-small" onclick="UI.toMenu()">BACK</button>
+                <div style="display:flex; gap:10px;">
+                    <button id="customize-btn" class="btn btn-small" style="display:none;" onclick="Customize.open()">CUSTOMIZE</button>
+                    <button id="tex-back-btn" class="btn btn-small" onclick="UI.toMenu()">BACK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMIZE SCREEN -->
+    <div id="customize" class="ui-layer hidden">
+        <div class="cust-left-panel">
+            <h2 style="color:var(--primary); font-family:var(--font-main);">WARDROBE</h2>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <div class="stat-badge" style="font-size:14px;"><span style="color:#00FFFF">♦</span> <span id="cust-gems">0</span></div>
+            </div>
+
+            <div class="cust-tabs" id="part-tabs">
+                <!-- Generated by JS -->
+            </div>
+
+            <div class="color-grid" id="color-grid">
+                <!-- Generated by JS -->
+            </div>
+
+            <div style="margin-top:auto;">
+                <h3 style="margin:5px 0;">SAVED OUTFITS</h3>
+                <div class="slots-grid" id="slots-grid">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+
+            <div style="margin-top:15px; display:flex; gap:10px;">
+                <button class="btn btn-small" style="flex:1; padding:10px;" onclick="Customize.saveSlot()">SAVE</button>
+                <button class="btn btn-small" style="flex:1; padding:10px; background:#444; box-shadow:none;" onclick="Customize.close()">EXIT</button>
+            </div>
+        </div>
+        <div class="cust-right-area" id="cust-3d-area"></div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal" class="hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">Confirm</h3>
+            <p id="modal-text">Buy this color?</p>
+            <div id="modal-preview" style="width:50px; height:50px; border-radius:50%; margin:10px auto; border:2px solid white;"></div>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">
+                <button class="btn btn-small" onclick="UI.confirmModal()">YES</button>
+                <button class="btn btn-small" style="background:#444; box-shadow:none;" onclick="UI.closeModal()">NO</button>
             </div>
         </div>
     </div>
@@ -371,7 +504,19 @@
 <script>
 const AudioSys = {
     ctx: null,
-    init() { if(!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+    bgm: null,
+    init() { 
+        if(!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+            this.bgm = document.getElementById('bgm');
+            this.playBGM();
+        }
+    },
+    playBGM() {
+        if(this.bgm && this.bgm.paused) {
+            this.bgm.play().catch(e => console.log("Audio play failed interaction required"));
+        }
+    },
     playTone(freq, type, dur, vol=0.1, slide=0) {
         if(!this.ctx) return;
         const osc = this.ctx.createOscillator();
@@ -386,10 +531,14 @@ const AudioSys = {
     },
     sfx: {
         coin: () => { AudioSys.playTone(1200, 'sine', 0.1, 0.1); setTimeout(()=>AudioSys.playTone(1800, 'sine', 0.2, 0.1), 50); },
-        dash: () => AudioSys.playTone(300, 'sawtooth', 0.3, 0.1, 50),
+        dash: () => AudioSys.playTone(400, 'sawtooth', 0.2, 0.1, 100), // Changed dash sound
         hit: () => AudioSys.playTone(100, 'square', 0.3, 0.2, 10),
         step: () => AudioSys.playTone(80, 'triangle', 0.05, 0.02),
         parrot: () => AudioSys.playTone(1500, 'sawtooth', 0.1, 0.1, 1000),
+        bark: () => { // New bark sound
+            AudioSys.playTone(300, 'square', 0.05, 0.1, 200);
+            setTimeout(() => AudioSys.playTone(250, 'square', 0.08, 0.1, 150), 60);
+        },
         levelup: () => { 
             AudioSys.playTone(400, 'sine', 0.1, 0.2); 
             setTimeout(()=>AudioSys.playTone(600, 'sine', 0.1, 0.2), 100);
@@ -423,6 +572,12 @@ const Assets = {
         parrotWhite: new THREE.MeshToonMaterial({color: 0xFFFFFF}),
         beakYellow: new THREE.MeshToonMaterial({color: 0xFFD600}),
         
+        // CITY MATERIALS
+        windowGlass: new THREE.MeshToonMaterial({color: 0x87CEEB, emissive: 0x222222}),
+        concrete: new THREE.MeshStandardMaterial({color: 0x777777, roughness: 0.9}),
+        asphalt: new THREE.MeshToonMaterial({color: 0x333333}),
+        benchWood: new THREE.MeshToonMaterial({color: 0x8D6E63}),
+
         // LAB MATERIALS
         metalDark: new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.4, metalness: 0.8}),
         metalLight: new THREE.MeshStandardMaterial({color: 0x888888, roughness: 0.3, metalness: 0.9}),
@@ -430,39 +585,67 @@ const Assets = {
         waterBlue: new THREE.MeshToonMaterial({color: 0x1E88E5, opacity: 0.8, transparent: false})
     },
     
-    createPlayer() {
+    // Modified to support colors
+    createPlayer(colors = null) {
         const group = new THREE.Group();
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), this.materials.shirt);
-        torso.position.y = 1.4; torso.castShadow = true; group.add(torso);
+        // Helpers to get material or default
+        const getMat = (base, key) => {
+            if(colors && colors[key]) return new THREE.MeshToonMaterial({color: colors[key]});
+            return base;
+        }
+
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), getMat(this.materials.shirt, 'shirt'));
+        torso.position.y = 1.4; torso.castShadow = true; 
+        torso.name = 'shirt';
+        group.add(torso);
+        
         const headGroup = new THREE.Group(); headGroup.position.y = 2.3;
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), this.materials.skin);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), getMat(this.materials.skin, 'skin'));
+        head.name = 'skin';
         headGroup.add(head);
-        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.25, 0.75), this.materials.hair);
-        hair.position.y = 0.38; headGroup.add(hair);
-        const fringe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), this.materials.hair);
-        fringe.position.set(0, 0.25, 0.35); headGroup.add(fringe);
+        
+        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.25, 0.75), getMat(this.materials.hair, 'hair'));
+        hair.position.y = 0.38; hair.name = 'hair'; headGroup.add(hair);
+        const fringe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), getMat(this.materials.hair, 'hair'));
+        fringe.position.set(0, 0.25, 0.35); fringe.name = 'hair_fringe'; headGroup.add(fringe);
+        
         const createEye = (x) => {
             const eyeGroup = new THREE.Group(); eyeGroup.position.set(x, 0.05, 0.36);
             const white = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), this.materials.eyeWhite);
-            const pupil = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.08), this.materials.eyeBlack);
+            const pupil = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.08), colors && colors.eyes ? new THREE.MeshBasicMaterial({color:colors.eyes}) : this.materials.eyeBlack);
             pupil.position.z = 0.01; eyeGroup.add(white, pupil); return eyeGroup;
         };
         headGroup.add(createEye(0.18), createEye(-0.18));
         group.add(headGroup);
-        const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), new THREE.MeshToonMaterial({color: 0x555555}));
-        backpack.position.set(0, 1.5, -0.35); group.add(backpack);
-        const createLimb = (mat, x, y) => {
+        
+        const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), colors && colors.backpack ? new THREE.MeshToonMaterial({color:colors.backpack}) : new THREE.MeshToonMaterial({color: 0x555555}));
+        backpack.position.set(0, 1.5, -0.35); backpack.name = 'backpack'; group.add(backpack);
+        
+        const createLimb = (matKey, defaultMat, x, y, isLeg) => {
             const pivot = new THREE.Group(); pivot.position.set(x, y, 0);
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 0.3), mat);
-            mesh.position.y = -0.4; mesh.castShadow = true; pivot.add(mesh); return pivot;
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 0.3), getMat(defaultMat, matKey));
+            mesh.position.y = -0.4; mesh.castShadow = true; 
+            if(isLeg) mesh.name = 'pants'; else mesh.name = 'skin';
+            pivot.add(mesh); 
+            
+            if(isLeg) {
+                // Shoes
+                const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.4), colors && colors.shoes ? new THREE.MeshToonMaterial({color:colors.shoes}) : new THREE.MeshToonMaterial({color: 0x222222}));
+                shoe.position.y = -0.9; shoe.position.z = 0.05;
+                shoe.name = 'shoes';
+                pivot.add(shoe);
+            }
+            return pivot;
         };
-        const legL = createLimb(this.materials.pants, -0.25, 0.8);
-        const legR = createLimb(this.materials.pants, 0.25, 0.8);
-        const armL = createLimb(this.materials.skin, -0.55, 1.9);
-        const armR = createLimb(this.materials.skin, 0.55, 1.9);
+        const legL = createLimb('pants', this.materials.pants, -0.25, 0.8, true);
+        const legR = createLimb('pants', this.materials.pants, 0.25, 0.8, true);
+        const armL = createLimb('skin', this.materials.skin, -0.55, 1.9, false);
+        const armR = createLimb('skin', this.materials.skin, 0.55, 1.9, false);
         group.add(legL, legR, armL, armR);
+        
         const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.8, 16), new THREE.MeshBasicMaterial({color:0x000000, opacity:0.3, transparent:true}));
         shadow.rotation.x = -Math.PI/2; shadow.position.y = 0.05; group.add(shadow);
+        
         return { mesh: group, limbs: { legL, legR, armL, armR } };
     },
 
@@ -625,6 +808,50 @@ const Assets = {
         const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2, 6), this.materials.tree); leaves2.position.y = 3.2; group.add(leaves2);
         return group;
     },
+    
+    // City Props
+    createSkyscraper() {
+        const group = new THREE.Group();
+        const h = 3 + Math.random() * 5;
+        const w = 1.5 + Math.random() * 1.5;
+        const d = 1.5 + Math.random() * 1.5;
+        const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), this.materials.concrete);
+        building.position.y = h/2; building.castShadow = true; group.add(building);
+        
+        // Windows
+        const winGeo = new THREE.PlaneGeometry(0.3, 0.3);
+        const rows = Math.floor(h/0.6); const cols = Math.floor(w/0.6);
+        for(let i=1; i<rows; i++) {
+            for(let j=0; j<cols; j++) {
+                if(Math.random()>0.3) {
+                    const win = new THREE.Mesh(winGeo, this.materials.windowGlass);
+                    win.position.set(-w/2 + 0.3 + j*0.5, i*0.6, d/2 + 0.01);
+                    group.add(win);
+                    const winBack = win.clone(); winBack.position.z = -d/2 - 0.01; winBack.rotation.y = Math.PI;
+                    group.add(winBack);
+                }
+            }
+        }
+        return group;
+    },
+    createBench() {
+        const group = new THREE.Group();
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.5), this.materials.benchWood);
+        seat.position.y = 0.3; group.add(seat);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.4, 0.1), this.materials.benchWood);
+        back.position.set(0, 0.6, -0.2); group.add(back);
+        const l1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.4), this.materials.metalDark);
+        l1.position.set(0.6, 0.2, 0); group.add(l1);
+        const l2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.4), this.materials.metalDark);
+        l2.position.set(-0.6, 0.2, 0); group.add(l2);
+        return group;
+    },
+    createRoadMarking() {
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 4), new THREE.MeshBasicMaterial({color:0xFFFFFF}));
+        mesh.rotation.x = -Math.PI/2;
+        mesh.position.y = 0.01;
+        return mesh;
+    },
 
     createLabEnvironment() {
         const group = new THREE.Group();
@@ -640,13 +867,197 @@ const Assets = {
     }
 };
 
+const Customize = {
+    parts: ['Hair', 'Skin', 'Shirt', 'Pants', 'Backpack', 'Eyes', 'Shoes'],
+    colors: [
+        { name: 'Red', hex: 0xFF0000, lvl: 35 },
+        { name: 'Orange', hex: 0xFF8800, lvl: 0 },
+        { name: 'Yellow', hex: 0xFFFF00, lvl: 0 },
+        { name: 'Green', hex: 0x008000, lvl: 0 },
+        { name: 'Lime', hex: 0x00FF00, lvl: 0 },
+        { name: 'Cyan', hex: 0x00FFFF, lvl: 0 },
+        { name: 'Blue', hex: 0x0000FF, lvl: 15 },
+        { name: 'Purple', hex: 0x800080, lvl: 0 },
+        { name: 'Pink', hex: 0xFFC0CB, lvl: 0 },
+        { name: 'Black', hex: 0x111111, lvl: 0 },
+        { name: 'White', hex: 0xFFFFFF, lvl: 0 },
+        { name: 'Maroon', hex: 0x800000, lvl: 0 },
+        { name: 'Brown', hex: 0x8B4513, lvl: 0 },
+        { name: 'Russet', hex: 0x80461B, lvl: 95 },
+        { name: 'Beige', hex: 0xF5F5DC, lvl: 0 }
+    ],
+    slots: [
+        {name: 'Default', colors: null, locked: true}, // Default look
+        ...Array(9).fill().map((_,i) => ({name: `Slot ${i+1}`, colors: null, img: null}))
+    ],
+    currentPart: 'Hair',
+    activeSlot: 0,
+    tempColors: {}, // Currently editing colors
+    unlockedColors: [], // Array of hexes
+
+    init() {
+        // Load data
+        const save = localStorage.getItem('einar_custom_v1');
+        if(save) {
+            const d = JSON.parse(save);
+            this.unlockedColors = d.unlocked || [];
+            if(d.slots) {
+                // Restore slots (skip default)
+                for(let i=1; i<this.slots.length; i++) {
+                    if(d.slots[i]) this.slots[i] = d.slots[i];
+                }
+            }
+            this.activeSlot = d.activeSlot || 0;
+        }
+        this.tempColors = this.slots[this.activeSlot].colors ? {...this.slots[this.activeSlot].colors} : {};
+    },
+
+    save() {
+        const slotsToSave = [...this.slots];
+        localStorage.setItem('einar_custom_v1', JSON.stringify({
+            unlocked: this.unlockedColors,
+            slots: slotsToSave,
+            activeSlot: this.activeSlot
+        }));
+    },
+
+    open() {
+        Game.state = 'customize';
+        UI.setScreen('customize');
+        this.renderUI();
+        this.selectPart('Hair');
+        Game.loadCustomizeScene();
+    },
+
+    close() {
+        // Revert to active slot colors
+        this.tempColors = this.slots[this.activeSlot].colors ? {...this.slots[this.activeSlot].colors} : {};
+        UI.toTextures();
+    },
+
+    selectPart(part) {
+        this.currentPart = part;
+        this.renderUI();
+        Game.setCameraTarget(part);
+    },
+
+    renderUI() {
+        document.getElementById('cust-gems').innerText = Game.stats.gems;
+        
+        // Tabs
+        const tabCont = document.getElementById('part-tabs'); tabCont.innerHTML = '';
+        this.parts.forEach(p => {
+            const btn = document.createElement('div');
+            btn.className = `cust-tab-btn ${this.currentPart === p ? 'active' : ''}`;
+            btn.innerText = p;
+            btn.onclick = () => this.selectPart(p);
+            tabCont.appendChild(btn);
+        });
+
+        // Colors
+        const grid = document.getElementById('color-grid'); grid.innerHTML = '';
+        const currentHex = this.tempColors[this.currentPart.toLowerCase()] || this.getDefaultColor(this.currentPart);
+
+        this.colors.forEach(c => {
+            const isUnlocked = c.lvl === 0 || this.unlockedColors.includes(c.hex);
+            const isLevelOk = Game.getLevel(Game.stats.xp) >= c.lvl;
+            
+            const div = document.createElement('div');
+            div.className = `color-item ${currentHex === c.hex ? 'selected' : ''}`;
+            if(!isUnlocked && !isLevelOk) div.classList.add('locked');
+            div.style.backgroundColor = '#' + c.hex.toString(16).padStart(6, '0');
+            
+            div.onclick = () => {
+                if(!isLevelOk && !isUnlocked) return; // Completely locked by level
+                if(!isUnlocked) {
+                    UI.showBuyModal(c);
+                } else {
+                    this.applyColor(c.hex);
+                }
+            };
+            grid.appendChild(div);
+        });
+
+        // Slots
+        const slotGrid = document.getElementById('slots-grid'); slotGrid.innerHTML = '';
+        this.slots.forEach((s, i) => {
+            const card = document.createElement('div');
+            card.className = `slot-card ${this.activeSlot === i ? 'active' : ''}`;
+            
+            let content = '';
+            if(i === 0) {
+                content = `<div class="slot-img" style="background:#333; display:flex; align-items:center; justify-content:center;">DEF</div><span>Default</span>`;
+            } else {
+                content = `<img class="slot-img" src="${s.img || ''}" style="opacity:${s.img?1:0.2}">
+                           <input class="slot-name" value="${s.name}" onchange="Customize.renameSlot(${i}, this.value)" onclick="event.stopPropagation()">`;
+            }
+            card.innerHTML = content;
+            card.onclick = () => this.loadSlot(i);
+            slotGrid.appendChild(card);
+        });
+    },
+
+    getDefaultColor(part) {
+        const map = {
+            'hair': 0x5D4037, 'skin': 0xffccaa, 'shirt': 0x2196F3, 'pants': 0x333333,
+            'backpack': 0x555555, 'eyes': 0x000000, 'shoes': 0x222222
+        };
+        return map[part.toLowerCase()] || 0xFFFFFF;
+    },
+
+    applyColor(hex) {
+        this.tempColors[this.currentPart.toLowerCase()] = hex;
+        Game.updatePlayerColors(this.tempColors);
+        this.renderUI();
+    },
+
+    loadSlot(idx) {
+        this.activeSlot = idx;
+        const s = this.slots[idx];
+        this.tempColors = s.colors ? {...s.colors} : {};
+        // If loading default, clear tempColors to rely on defaults
+        if(idx === 0) this.tempColors = {};
+        Game.updatePlayerColors(this.tempColors);
+        this.save();
+        this.renderUI();
+    },
+
+    saveSlot() {
+        if(this.activeSlot === 0) return; // Cannot save to default
+        // Snapshot
+        Game.renderer.render(Game.scene, Game.camera);
+        const img = Game.renderer.domElement.toDataURL('image/png');
+        
+        this.slots[this.activeSlot].colors = {...this.tempColors};
+        this.slots[this.activeSlot].img = img;
+        this.save();
+        this.renderUI();
+    },
+
+    renameSlot(idx, name) {
+        this.slots[idx].name = name;
+        this.save();
+    },
+    
+    unlockColor(hex) {
+        this.unlockedColors.push(hex);
+        Game.stats.gems -= 5;
+        AudioSys.sfx.coin();
+        Game.save();
+        this.save(); // Save unlocked list
+        this.applyColor(hex);
+        UI.closeModal();
+    }
+};
+
 const Game = {
     state: 'init',
     maps: {
         forest: { name: "Forest", color: 0x4CAF50, bg: 0x81C784, friction: 0.8, levelReq: 0 },
         desert: { name: "Desert", color: 0xFFB74D, bg: 0xFFE0B2, friction: 0.8, levelReq: 10 },
         ice: { name: "Arctic", color: 0xB3E5FC, bg: 0xE1F5FE, friction: 0.85, levelReq: 25 }, 
-        studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.8, levelReq: 55 }
+        studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.8, levelReq: 55 },
+        city: { name: "City", color: 0x333333, bg: 0x111122, friction: 0.9, levelReq: 80 }
     },
     
     scene: null, camera: null, renderer: null, clock: new THREE.Clock(),
@@ -657,11 +1068,14 @@ const Game = {
     keys: { w: false, a: false, s: false, d: false },
     zone: { radius: 120, target: 120, mesh: null, time: 60 },
     stats: { coins: 0, gems: 0, time: 0, xp: 0 },
-    upgrades: { speed: 0, hp: 0, agility: 0 },
+    upgrades: { speed: 0, hp: 0, agility: 0, turbo: 0 },
+    bestRun: { map: '-', time: 0 },
     
     textureIdx: 0, textureModel: null, labEnvironment: null,
+    custCamTarget: new THREE.Vector3(), custCamLookAt: new THREE.Vector3(),
+    
     textureData: [
-        { name: "Einar", desc: "A brave traveler.", create: () => Assets.createPlayer() },
+        { name: "Einar", desc: "A brave traveler.", create: (c) => Assets.createPlayer(c) },
         { name: "Amar", desc: "Main antagonist. Basenji.", create: () => Assets.createAmar() },
         { name: "Milo", desc: "Loyal partner.", create: () => Assets.createMilo() },
         { name: "Timosha", desc: "Rare blue parrot.", create: () => Assets.createTimosha() },
@@ -675,12 +1089,16 @@ const Game = {
             this.stats.coins = d.coins || 0;
             this.stats.gems = d.gems || 0;
             this.stats.xp = d.xp || 0;
-            this.upgrades = d.upgrades || {speed:0, hp:0, agility:0};
+            this.upgrades = d.upgrades || {speed:0, hp:0, agility:0, turbo:0};
+            if(typeof this.upgrades.turbo === 'undefined') this.upgrades.turbo = 0; // Backwards compatibility
+            this.bestRun = d.bestRun || { map: '-', time: 0 };
         }
+        
+        Customize.init(); // Load custom data
         
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
-        this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: false});
+        this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: false, preserveDrawingBuffer: true}); // Enabled preserveDrawingBuffer for snapshots
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.shadowMap.enabled = true;
@@ -714,7 +1132,8 @@ const Game = {
             coins: this.stats.coins, 
             gems: this.stats.gems, 
             xp: this.stats.xp,
-            upgrades: this.upgrades 
+            upgrades: this.upgrades,
+            bestRun: this.bestRun
         }));
         UI.updateLevelDisplay();
     },
@@ -744,14 +1163,19 @@ const Game = {
         this.scene.fog = null;
         const menuFloor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshToonMaterial({color: 0x222233}));
         menuFloor.rotation.x = -Math.PI/2; menuFloor.receiveShadow = true; this.scene.add(menuFloor);
-        const p = Assets.createPlayer();
+        
+        // Load player with current active slot colors
+        const activeColors = Customize.slots[Customize.activeSlot].colors;
+        const p = Assets.createPlayer(activeColors);
         p.mesh.position.set(2, 0, 0); p.mesh.rotation.y = -Math.PI/2; this.scene.add(p.mesh);
+        
         const a = Assets.createAmar();
         a.mesh.position.set(5, 0, 0); a.mesh.rotation.y = -Math.PI/2; this.scene.add(a.mesh);
         this.menuAnim = { player: p, enemy: a, time: 0 };
         this.camera.position.set(0, 3, 8);
         this.camera.lookAt(0, 1.5, 0);
         UI.updateLevelDisplay();
+        AudioSys.playBGM();
     },
 
     start() {
@@ -784,7 +1208,9 @@ const Game = {
         this.water.position.y = -0.55; 
         this.scene.add(this.water);
         
-        const pObj = Assets.createPlayer();
+        // Use active slot colors
+        const activeColors = Customize.slots[Customize.activeSlot].colors;
+        const pObj = Assets.createPlayer(activeColors);
         this.player = {
             mesh: pObj.mesh, limbs: pObj.limbs,
             pos: new THREE.Vector3(0,0,0), vel: new THREE.Vector3(0,0,0),
@@ -793,7 +1219,7 @@ const Game = {
         };
         this.scene.add(this.player.mesh);
         
-        const propCount = this.currentMap === 'studio' ? 25 : 80;
+        const propCount = this.currentMap === 'studio' ? 25 : this.currentMap === 'city' ? 30 : 80;
         for(let i=0; i<propCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const r = Math.sqrt(Math.random()) * (this.zone.radius - 5);
@@ -811,10 +1237,29 @@ const Game = {
                 if(Math.random() < 0.2) { mesh = Assets.createTumbleweed(); isTumbleweed = true; radius = 0.5; mesh.position.y = 0.5; } 
                 else { mesh = Assets.createCactus(); }
             }
+            else if(this.currentMap === 'city') {
+                if(Math.random() < 0.7) {
+                    mesh = Assets.createSkyscraper();
+                    radius = 2.5; // Larger collision for buildings
+                } else {
+                    // Park area
+                    const parkGroup = new THREE.Group();
+                    const tree = Assets.createTree(); parkGroup.add(tree);
+                    const bench = Assets.createBench(); bench.position.set(1, 0, 1); bench.rotation.y = Math.random(); parkGroup.add(bench);
+                    mesh = parkGroup;
+                }
+                // Add some roads (visual only) nearby
+                if(Math.random() < 0.5) {
+                    const road = Assets.createRoadMarking();
+                    road.position.set(x + (Math.random()-0.5)*10, 0.01, z + (Math.random()-0.5)*10);
+                    road.rotation.z = Math.random() * Math.PI;
+                    this.scene.add(road);
+                }
+            }
             else mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1 + Math.random()), new THREE.MeshToonMaterial({color:0x777777}));
             
             if(!isTumbleweed) {
-                mesh.position.set(x, this.currentMap!=='forest' && this.currentMap!=='studio' && this.currentMap!=='desert' ? 1 : 0, z);
+                mesh.position.set(x, this.currentMap!=='forest' && this.currentMap!=='studio' && this.currentMap!=='desert' && this.currentMap!=='city' ? 1 : 0, z);
                 if(this.currentMap === 'forest' || this.currentMap === 'desert') mesh.rotation.y = Math.random() * Math.PI;
             } else { mesh.position.set(x, 0.5, z); }
             
@@ -830,7 +1275,7 @@ const Game = {
         const z = Math.sin(angle) * r;
         let type = 'amar'; const rand = Math.random();
         
-        if (rand < 0.10) { if(this.currentMap === 'ice' || this.currentMap === 'studio') type = 'cosmo'; }
+        if (rand < 0.10) { if(this.currentMap === 'ice' || this.currentMap === 'studio' || this.currentMap === 'city') type = 'cosmo'; }
         else if (rand < 0.25) { if(this.currentMap !== 'ice') type = 'timosha'; }
         else if (rand < 0.55) type = 'milo';
 
@@ -846,6 +1291,7 @@ const Game = {
             vel: new THREE.Vector3(), speed: speed, type: type, animOffset: Math.random() * 10
         });
         if(type === 'timosha') AudioSys.sfx.parrot();
+        if(type === 'amar' || type === 'milo') AudioSys.sfx.bark();
     },
 
     spawnCoin() {
@@ -863,10 +1309,9 @@ const Game = {
     loadShowcase(idx) {
         this.state = 'textures';
         this.clearScene();
-        // Lab Lighting - FIX: White light to show true colors
+        // Lab Lighting
         const amb = new THREE.AmbientLight(0xffffff, 0.8); this.scene.add(amb);
         const spot = new THREE.SpotLight(0xffffff, 1.5); spot.position.set(5, 10, 5); spot.castShadow = true; this.scene.add(spot);
-        // Dim blue rim light for atmosphere only
         const blueLight = new THREE.PointLight(0x00BFFF, 0.5, 10); blueLight.position.set(0, 2, -2); this.scene.add(blueLight);
 
         this.scene.background = new THREE.Color(0x050510);
@@ -875,7 +1320,8 @@ const Game = {
         this.scene.add(this.labEnvironment);
 
         const data = this.textureData[idx];
-        const obj = data.create();
+        // Pass tempColors if it's player, otherwise null
+        const obj = data.create(idx === 0 ? Customize.tempColors : null);
         this.textureModel = obj.mesh;
         this.textureModel.position.set(0, 0, 0);
         this.scene.add(this.textureModel);
@@ -886,6 +1332,63 @@ const Game = {
         document.getElementById('tex-name').innerText = data.name;
         document.getElementById('tex-title').innerText = data.name;
         document.getElementById('tex-desc').innerText = data.desc;
+        
+        // Show Customize button only for Einar
+        document.getElementById('customize-btn').style.display = (idx === 0) ? 'block' : 'none';
+    },
+
+    loadCustomizeScene() {
+        this.clearScene();
+        // Bright, clear lighting for customization
+        const amb = new THREE.AmbientLight(0xffffff, 1.0); this.scene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(2, 5, 5); this.scene.add(dir);
+        this.scene.background = new THREE.Color(0x1a1a2e); // Match menu/dark theme but clear
+
+        // Player with temp colors
+        const obj = Assets.createPlayer(Customize.tempColors);
+        this.textureModel = obj.mesh;
+        this.textureModel.position.set(0, 0, 0);
+        this.scene.add(this.textureModel);
+        
+        // Setup initial camera
+        this.camera.position.set(0, 2, 4);
+        this.camera.lookAt(0, 1.5, 0);
+        
+        // Setup targets for lerp
+        this.custCamTarget.set(0, 2, 4);
+        this.custCamLookAt.set(0, 1.5, 0);
+    },
+
+    updatePlayerColors(colors) {
+        if(this.textureModel) {
+            this.scene.remove(this.textureModel);
+            const obj = Assets.createPlayer(colors);
+            this.textureModel = obj.mesh;
+            this.textureModel.position.set(0, 0, 0);
+            this.textureModel.rotation.y = 0; // Reset rot or keep? Better keep.
+            // Actually, let's keep rotation
+            // this.textureModel.rotation.y = oldRot; 
+            this.scene.add(this.textureModel);
+        }
+    },
+    
+    setCameraTarget(part) {
+        // "Right side" is where character is. Move camera slightly left to center char in right space
+        const xOffset = 0; 
+        if(part === 'Head' || part === 'Hair' || part === 'Eyes') {
+            this.custCamTarget.set(xOffset, 2.3, 2);
+            this.custCamLookAt.set(xOffset, 2.3, 0);
+        } else if(part === 'Shoes') {
+            this.custCamTarget.set(xOffset, 0.5, 2);
+            this.custCamLookAt.set(xOffset, 0, 0);
+        } else if(part === 'Pants') {
+            this.custCamTarget.set(xOffset, 0.8, 2.5);
+            this.custCamLookAt.set(xOffset, 0.8, 0);
+        } else {
+            // Shirt/Skin/Backpack
+            this.custCamTarget.set(xOffset, 1.4, 2.5);
+            this.custCamLookAt.set(xOffset, 1.4, 0);
+        }
     },
 
     switchTexture(dir) {
@@ -903,6 +1406,19 @@ const Game = {
             this.labEnvironment.userData.scanRing.position.y = 1 + Math.sin(this.labEnvironment.userData.time * 2) * 1;
             this.labEnvironment.userData.scanRing.scale.setScalar(1 + Math.sin(this.labEnvironment.userData.time * 2) * 0.2);
             return; 
+        }
+
+        if(this.state === 'customize') {
+            // Camera Lerp
+            this.camera.position.lerp(this.custCamTarget, dt * 3);
+            // Interpolate lookAt manually or just lookAt
+            const currentLook = new THREE.Vector3();
+            this.camera.getWorldDirection(currentLook);
+            const targetDir = new THREE.Vector3().subVectors(this.custCamLookAt, this.camera.position).normalize();
+            const newDir = new THREE.Vector3().lerpVectors(currentLook, targetDir, dt * 5).normalize();
+            const lookAtPos = new THREE.Vector3().addVectors(this.camera.position, newDir);
+            this.camera.lookAt(lookAtPos);
+            return;
         }
 
         if(this.state === 'menu') {
@@ -1048,7 +1564,9 @@ const Game = {
         const p = this.player;
         if(p.dashCd <= 0) {
             const dir = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), p.mesh.rotation.y);
-            p.vel.add(dir.multiplyScalar(30)); p.dashCd = 2.0; AudioSys.sfx.dash();
+            const turboMult = 1 + (this.upgrades.turbo || 0) * 0.2; // +20% per level
+            p.vel.add(dir.multiplyScalar(30 * turboMult)); 
+            p.dashCd = 2.0; AudioSys.sfx.dash();
             const btn = document.getElementById('ability-btn');
             btn.style.opacity = 0.5; setTimeout(()=>btn.style.opacity = 1, 2000);
         }
@@ -1063,6 +1581,11 @@ const Game = {
         const oldLevel = this.getLevel(this.stats.xp);
         this.stats.xp = Math.min(100000, this.stats.xp + xpEarned);
         const newLevel = this.getLevel(this.stats.xp);
+        
+        // Best Run Check
+        if(this.stats.time > this.bestRun.time) {
+            this.bestRun = { map: this.maps[this.currentMap].name, time: this.stats.time };
+        }
         
         // Reset animation UI
         document.getElementById('xp-text').innerText = `+${xpEarned} XP`;
@@ -1090,6 +1613,7 @@ const Game = {
                     if(oldLevel < 10 && newLevel >= 10) unlockText = "UNLOCKED: DESERT";
                     else if(oldLevel < 25 && newLevel >= 25) unlockText = "UNLOCKED: ARCTIC";
                     else if(oldLevel < 55 && newLevel >= 55) unlockText = "UNLOCKED: STUDIO";
+                    else if(oldLevel < 80 && newLevel >= 80) unlockText = "UNLOCKED: CITY";
                     
                     if(unlockText) {
                         const msg = document.getElementById('unlock-msg');
@@ -1154,14 +1678,24 @@ const Game = {
             if(k === 's' || k === 'ы') this.keys.s = false; if(k === 'd' || k === 'в') this.keys.d = false;
         });
 
+        // Rotation logic handles both texture viewer and customize mode
         const texArea = document.getElementById('tex-touch-area');
+        const custArea = document.getElementById('cust-3d-area');
         let isDrag = false; let lastX = 0;
-        texArea.addEventListener('mousedown', (e) => { isDrag = true; lastX = e.clientX; });
-        texArea.addEventListener('touchstart', (e) => { isDrag = true; lastX = e.touches[0].clientX; });
+        
+        const startDrag = (e) => { isDrag = true; lastX = e.clientX || e.touches[0].clientX; };
+        
+        texArea.addEventListener('mousedown', startDrag);
+        texArea.addEventListener('touchstart', startDrag);
+        custArea.addEventListener('mousedown', startDrag);
+        custArea.addEventListener('touchstart', startDrag);
+
         window.addEventListener('mousemove', (e) => { if(isDrag) { Game.onTextureDrag(e.clientX - lastX); lastX = e.clientX; } });
         window.addEventListener('touchmove', (e) => { if(isDrag) { Game.onTextureDrag(e.touches[0].clientX - lastX); lastX = e.touches[0].clientX; } });
         window.addEventListener('mouseup', () => isDrag = false);
         window.addEventListener('touchend', () => isDrag = false);
+        
+        document.body.addEventListener('click', () => AudioSys.playBGM(), {once:true});
     },
     clearScene() { while(this.scene.children.length > 0) this.scene.remove(this.scene.children[0]); },
     toMenu() { this.state = 'menu'; UI.setScreen('menu'); UI.showHUD(false); this.loadMenuScene(); },
@@ -1198,7 +1732,7 @@ const UI = {
             const div = document.createElement('div');
             div.className = `card ${k===Game.currentMap?'selected':''} ${locked?'locked':''}`;
             div.innerHTML = `
-                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':'🏢'}</div>
+                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':k=='studio'?'🏢':'🏙️'}</div>
                 <div>${m.name}</div>
                 <div class="lock-icon">🔒</div>
                 ${locked ? `<div class="lvl-req">LVL ${m.levelReq}</div>` : ''}
@@ -1236,13 +1770,19 @@ const UI = {
     updateShop() {
         document.getElementById('shop-coins').innerText = Game.stats.coins;
         document.getElementById('shop-gems').innerText = Game.stats.gems;
+        
+        const mins = Math.floor(Game.bestRun.time / 60).toString().padStart(2, '0');
+        const secs = Math.floor(Game.bestRun.time % 60).toString().padStart(2, '0');
+        document.getElementById('best-run-display').innerText = `Best Run: ${Game.bestRun.map} - ${mins}:${secs}`;
+        
         const list = document.getElementById('shop-list'); list.innerHTML = '';
         const upgrades = [
-            { id: 'speed', name: 'Speed', desc: 'Run faster', cost: l => 100 * (l+1), curr: 'coins', max: 5 },
-            { id: 'hp', name: 'Health', desc: 'More hearts', cost: l => 5 + (l*2), curr: 'gems', max: 3 }
+            { id: 'speed', name: 'Speed', desc: 'Run faster', cost: l => 100 + (l * 50), curr: 'coins', max: 5 },
+            { id: 'hp', name: 'Health', desc: 'More hearts', cost: l => 5 + (l*2), curr: 'gems', max: 3 },
+            { id: 'turbo', name: 'Turbo', desc: 'Dash Power +20%', cost: l => 20 + (l*10), curr: 'gems', max: 5 }
         ];
         upgrades.forEach(u => {
-            const lvl = Game.upgrades[u.id]; const cost = u.cost(lvl); const isMax = lvl >= u.max;
+            const lvl = Game.upgrades[u.id] || 0; const cost = u.cost(lvl); const isMax = lvl >= u.max;
             const div = document.createElement('div'); div.className = 'shop-row';
             div.innerHTML = `<div><h3>${u.name} <small>Lvl ${lvl}</small></h3><small>${u.desc}</small></div>
                 <button class="btn btn-small" style="padding:5px 15px; font-size:14px;" 
@@ -1251,13 +1791,43 @@ const UI = {
         });
     },
     buy(id) {
-        const upg = { speed: {cost: l=>100*(l+1), curr:'coins'}, hp: {cost: l=>5+l*2, curr:'gems'} }[id];
-        const lvl = Game.upgrades[id]; const cost = upg.cost(lvl);
+        const upg = { 
+            speed: {cost: l=>100*(l+1), curr:'coins'}, 
+            hp: {cost: l=>5+l*2, curr:'gems'},
+            turbo: {cost: l=>20+(l*10), curr:'gems'}
+        }[id];
+        
+        const lvl = Game.upgrades[id] || 0; const cost = upg.cost(lvl);
         if(Game.stats[upg.curr] >= cost) {
-            Game.stats[upg.curr] -= cost; Game.upgrades[id]++; AudioSys.sfx.coin();
+            Game.stats[upg.curr] -= cost; 
+            if(!Game.upgrades[id]) Game.upgrades[id] = 0;
+            Game.upgrades[id]++; 
+            AudioSys.sfx.coin();
             Game.save();
             this.updateShop();
         }
+    },
+    
+    // Customization Modals
+    pendingColor: null,
+    showBuyModal(colorObj) {
+        if(Game.stats.gems < 5) {
+             alert("Not enough gems!"); return; // Simple fallback
+        }
+        this.pendingColor = colorObj;
+        const modal = document.getElementById('modal');
+        document.getElementById('modal-text').innerText = `Unlock ${colorObj.name} for 5 Gems?`;
+        document.getElementById('modal-preview').style.backgroundColor = '#' + colorObj.hex.toString(16).padStart(6, '0');
+        modal.classList.remove('hidden');
+    },
+    confirmModal() {
+        if(this.pendingColor) {
+            Customize.unlockColor(this.pendingColor.hex);
+        }
+    },
+    closeModal() {
+        document.getElementById('modal').classList.add('hidden');
+        this.pendingColor = null;
     }
 };
 
