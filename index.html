@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einar vs Amar: Quests Fix</title>
+    <title>Einar vs Amar: Space Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -54,7 +54,7 @@
 
         /* CUSTOMIZE SCREEN (New Layout) */
         #customize {
-            background: transparent; /* No blur/darkness as requested */
+            background: transparent;
             flex-direction: row;
             align-items: stretch;
             justify-content: flex-start;
@@ -226,7 +226,7 @@
             border: 2px solid #444; cursor: pointer; text-align: left;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .quest-item.completed { border-color: #00FF00; background: #1a2e1a; }
+        .quest-item.completed { border-color: #00FF00; background: #1a2e1a; opacity: 0.6; cursor: default; }
         .quest-item.locked { opacity: 0.5; cursor: not-allowed; }
         .quest-item.active-q { border-color: var(--primary); background: #3e2a2a; }
         .quest-title { font-weight: bold; font-family: var(--font-main); color: var(--primary); }
@@ -600,11 +600,11 @@ const AudioSys = {
     },
     sfx: {
         coin: () => { AudioSys.playTone(1200, 'sine', 0.1, 0.1); setTimeout(()=>AudioSys.playTone(1800, 'sine', 0.2, 0.1), 50); },
-        dash: () => AudioSys.playTone(400, 'sawtooth', 0.2, 0.1, 100), // Changed dash sound
+        dash: () => AudioSys.playTone(400, 'sawtooth', 0.2, 0.1, 100), 
         hit: () => AudioSys.playTone(100, 'square', 0.3, 0.2, 10),
         step: () => AudioSys.playTone(80, 'triangle', 0.05, 0.02),
         parrot: () => AudioSys.playTone(1500, 'sawtooth', 0.1, 0.1, 1000),
-        bark: () => { // New bark sound
+        bark: () => { 
             AudioSys.playTone(300, 'square', 0.05, 0.1, 200);
             setTimeout(() => AudioSys.playTone(250, 'square', 0.08, 0.1, 150), 60);
         },
@@ -644,7 +644,7 @@ const Assets = {
         eyeBlack: new THREE.MeshBasicMaterial({color: 0x000000}),
         
         computerBeige: new THREE.MeshToonMaterial({color: 0xDDDDDD}),
-        screenBlack: new THREE.MeshToonMaterial({color: 0x111111, shininess: 100}),
+        screenBlack: new THREE.MeshPhongMaterial({color: 0x111111, shininess: 100}),
         chairBlue: new THREE.MeshToonMaterial({color: 0x1565C0}),
         cactusGreen: new THREE.MeshToonMaterial({color: 0x66BB6A}),
         parrotBlue: new THREE.MeshToonMaterial({color: 0x03A9F4}),
@@ -665,13 +665,31 @@ const Assets = {
         
         // JUNGLE QUEST MATS
         bamboo: new THREE.MeshToonMaterial({color: 0x8BC34A}),
-        stoneRuin: new THREE.MeshStandardMaterial({color: 0x555555, roughness: 1})
+        stoneRuin: new THREE.MeshStandardMaterial({color: 0x555555, roughness: 1}),
+        
+        // SPACE MATERIALS
+        spaceRock: new THREE.MeshStandardMaterial({color: 0x666666, roughness: 0.9}),
+        satelliteGold: new THREE.MeshStandardMaterial({color: 0xFFD700, metalness: 0.8, roughness: 0.2}),
+        spaceSuitWhite: new THREE.MeshStandardMaterial({color: 0xEEEEEE, roughness: 0.4}),
+        glassHelmet: new THREE.MeshPhongMaterial({color: 0x88ccff, opacity: 0.3, transparent: true, shininess: 100}),
+        neptuneBlue: new THREE.MeshToonMaterial({color: 0x4b70dd})
     },
     
-    // Modified to support colors
-    createPlayer(colors = null) {
+    // Helper to add spacesuit parts
+    addSpaceSuit(group, headY, scale=1) {
+        // Bubble Helmet
+        const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.5 * scale, 16, 16), this.materials.glassHelmet);
+        helmet.position.y = headY;
+        group.add(helmet);
+        
+        // Backpack/Tank
+        const tank = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.5 * scale, 0.2 * scale), this.materials.spaceSuitWhite);
+        tank.position.set(0, headY - 0.5 * scale, -0.3 * scale);
+        group.add(tank);
+    },
+
+    createPlayer(colors = null, isSpace = false) {
         const group = new THREE.Group();
-        // Helpers to get material or default
         const getMat = (base, key) => {
             if(colors && colors[key]) return new THREE.MeshToonMaterial({color: colors[key]});
             return base;
@@ -712,7 +730,6 @@ const Assets = {
             pivot.add(mesh); 
             
             if(isLeg) {
-                // Shoes
                 const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.4), colors && colors.shoes ? new THREE.MeshToonMaterial({color:colors.shoes}) : new THREE.MeshToonMaterial({color: 0x222222}));
                 shoe.position.y = -0.9; shoe.position.z = 0.05;
                 shoe.name = 'shoes';
@@ -729,10 +746,12 @@ const Assets = {
         const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.8, 16), new THREE.MeshBasicMaterial({color:0x000000, opacity:0.3, transparent:true}));
         shadow.rotation.x = -Math.PI/2; shadow.position.y = 0.05; group.add(shadow);
         
+        if(isSpace) this.addSpaceSuit(group, 2.3, 1.2);
+
         return { mesh: group, limbs: { legL, legR, armL, armR } };
     },
 
-    createAmar() {
+    createAmar(isSpace = false) {
         const group = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 1.4), this.materials.dogMain);
         body.position.y = 0.8; body.castShadow = true; group.add(body);
@@ -759,10 +778,13 @@ const Assets = {
         };
         const limbs = [createDogLeg(0.2, 0.5), createDogLeg(-0.2, 0.5), createDogLeg(0.2, -0.5), createDogLeg(-0.2, -0.5)];
         limbs.forEach(l => group.add(l));
+
+        if(isSpace) this.addSpaceSuit(group, 1.3, 1.0);
+
         return { mesh: group, head: headGroup, limbs };
     },
     
-    createMilo() {
+    createMilo(isSpace = false) {
         const group = new THREE.Group();
         const grey = this.materials.miloGrey; const light = this.materials.miloLight;
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 1.2), grey);
@@ -796,10 +818,13 @@ const Assets = {
         };
         const limbs = [createDogLeg(0.2, 0.4), createDogLeg(-0.2, 0.4), createDogLeg(0.2, -0.4), createDogLeg(-0.2, -0.4)];
         limbs.forEach(l => group.add(l));
+
+        if(isSpace) this.addSpaceSuit(group, 1.1, 0.9);
+
         return { mesh: group, head: headGroup, limbs };
     },
 
-    createTimosha() {
+    createTimosha(isSpace = false) {
         const group = new THREE.Group();
         const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.5, 8), this.materials.parrotBlue);
         cylinder.position.y = 1.0; cylinder.castShadow = true; group.add(cylinder);
@@ -823,10 +848,13 @@ const Assets = {
         const wingL = createWing(0.3); const wingR = createWing(-0.3); group.add(wingL, wingR);
         const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.1), this.materials.parrotBlue);
         tail.position.set(0, 0.7, -0.25); tail.rotation.x = 0.5; group.add(tail);
+
+        if(isSpace) this.addSpaceSuit(group, 1.4, 0.8);
+
         return { mesh: group, wings: [wingL, wingR] };
     },
 
-    createCosmo() {
+    createCosmo(isSpace = false) {
         const group = new THREE.Group();
         const grey = this.materials.miloGrey; const skin = this.materials.skin;
         const body = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), grey);
@@ -846,9 +874,34 @@ const Assets = {
         const legFL = createLeg(0.2, 0.2); const legFR = createLeg(-0.2, 0.2);
         const legBL = createLeg(0.2, -0.2); const legBR = createLeg(-0.2, -0.2);
         group.add(legFL, legFR, legBL, legBR);
+        
+        if(isSpace) this.addSpaceSuit(group, 0.35, 0.9);
+
         return { mesh: group, limbs: [legFL, legFR, legBL, legBR] };
     },
     
+    // Space Props
+    createAsteroid() {
+        const geo = new THREE.DodecahedronGeometry(0.8 + Math.random() * 0.6, 0);
+        const mesh = new THREE.Mesh(geo, this.materials.spaceRock);
+        mesh.castShadow = true;
+        return mesh;
+    },
+    
+    createSatellite() {
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), this.materials.satelliteGold);
+        group.add(body);
+        const panelGeo = new THREE.BoxGeometry(1.5, 0.05, 0.4);
+        const panel1 = new THREE.Mesh(panelGeo, this.materials.screenBlack);
+        panel1.position.x = 1.1;
+        const panel2 = new THREE.Mesh(panelGeo, this.materials.screenBlack);
+        panel2.position.x = -1.1;
+        group.add(panel1, panel2);
+        group.rotation.set(Math.random(), Math.random(), Math.random());
+        return group;
+    },
+
     createOfficeSetup() {
         const group = new THREE.Group();
         const desk = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1), this.materials.computerBeige); desk.position.y = 0.8; desk.castShadow = true;
@@ -896,8 +949,8 @@ const Assets = {
     createSkyscraper() {
         const group = new THREE.Group();
         const h = 8 + Math.random() * 12; // taller
-const w = 1.8 + Math.random() * 2.0;
-const d = 1.8 + Math.random() * 2.0;
+        const w = 1.8 + Math.random() * 2.0;
+        const d = 1.8 + Math.random() * 2.0;
         const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), this.materials.concrete);
         building.position.y = h/2; building.castShadow = true; group.add(building);
         
@@ -1177,7 +1230,13 @@ const QuestSys = {
         { id: 7, name: "Void", map: 'jungle_dark', dur: 75, lowVis: true, msg: "You survived the darkness. Now survive pressure." },
         { id: 8, name: "Infiltration", map: 'desert', dur: 142, enemies: ['amar'], msg: "Almost there. Now survive something broken." },
         { id: 9, name: "Broken Beginning", map: 'forest', dur: 120, enemies: ['cosmo'], msg: "You are ready. The final challenge begins now." },
-        { id: 10, name: "Subscription", map: 'jungle_dark', obj: 'survival', lowVis: true, noDash: true, enemies: ['timosha'], msg: "You finished the quest line. You earned this reward." }
+        { id: 10, name: "Subscription", map: 'jungle_dark', obj: 'survival', lowVis: true, noDash: true, enemies: ['timosha'], msg: "You finished the quest line... Or did you?" },
+        // NEW QUESTS
+        { id: 11, name: "Shrinking", map: 'ice', dur: 60, msg: "The cold closes in. You adapted well." },
+        { id: 12, name: "Overload", map: 'forest', dur: 66, msg: "Too many enemies? No such thing for a master." },
+        { id: 13, name: "Attack", map: 'intro', dur: 70, enemies: ['milo'], msg: "Milo is relentless. But you were faster." },
+        { id: 14, name: "Fracture", map: 'studio', dur: 80, enemies: ['cosmo', 'amar'], msg: "The world is unstable. You are the constant." },
+        { id: 15, name: "World Run", map: 'city', dur: 300, msg: "A true marathon. You have conquered the world." }
     ],
     init() {
         const s = localStorage.getItem('einar_quests_v1');
@@ -1207,16 +1266,18 @@ const Game = {
         forest: { name: "Forest", color: 0x4CAF50, bg: 0x81C784, friction: 0.8, levelReq: 0 },
         desert: { name: "Desert", color: 0xFFB74D, bg: 0xFFE0B2, friction: 0.8, levelReq: 10 },
         ice: { name: "Arctic", color: 0xB3E5FC, bg: 0xE1F5FE, friction: 0.85, levelReq: 25 }, 
-        studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.8, levelReq: 55 },
-        city: { name: "City", color: 0x333333, bg: 0x111122, friction: 0.9, levelReq: 80 },
-        // New Quest Maps
+        studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.82, levelReq: 55 },
+        city: { name: "City", color: 0x333333, bg: 0x111122, friction: 0.83, levelReq: 80 },
+        // Changed friction to 0.96 to prevent uncontrollable sliding
+        space: { name: "Space", color: 0x221133, bg: 0x000000, friction: 0.86, levelReq: 130 },
+        // Quest Maps
         intro: { name: "Intro", color: 0x5D4037, bg: 0x81C784, friction: 0.8, levelReq: 999 },
         jungle_dark: { name: "Void", color: 0x2E7D32, bg: 0x000000, friction: 0.8, levelReq: 999 }
     },
     
     scene: null, camera: null, renderer: null, clock: new THREE.Clock(),
-    player: null, enemies: [], coins: [], props: [],
-    ground: null, water: null,
+    player: null, enemies: [], coins: [], props: [], stars: [],
+    ground: null, water: null, saturn: null, neptune: null,
     currentMap: 'forest',
     joystick: { x: 0, y: 0, active: false },
     keys: { w: false, a: false, s: false, d: false },
@@ -1224,12 +1285,13 @@ const Game = {
     stats: { coins: 0, gems: 0, time: 0, xp: 0, questLevel: 1 },
     upgrades: { speed: 0, hp: 0, agility: 0, turbo: 0 },
     bestRun: { map: '-', time: 0 },
-    runStats: { coins: 0, gems: 0 }, // Initialized here properly
+    runStats: { coins: 0, gems: 0 }, 
     
     textureIdx: 0, textureModel: null, labEnvironment: null,
     custCamTarget: new THREE.Vector3(), custCamLookAt: new THREE.Vector3(),
     
     activeQuest: null,
+    teleportTimer: 0,
 
     textureData: [
         { name: "Einar", desc: "A brave traveler.", create: (c) => Assets.createPlayer(c) },
@@ -1249,7 +1311,7 @@ const Game = {
             this.stats.questLevel = d.questLevel || 1;
             this.stats.questCompleted = d.questCompleted || {};
             this.upgrades = d.upgrades || {speed:0, hp:0, agility:0, turbo:0};
-            if(typeof this.upgrades.turbo === 'undefined') this.upgrades.turbo = 0; // Backwards compatibility
+            if(typeof this.upgrades.turbo === 'undefined') this.upgrades.turbo = 0;
             this.bestRun = d.bestRun || { map: '-', time: 0 };
         }
         
@@ -1257,8 +1319,8 @@ const Game = {
         QuestSys.init(); // Load quest unlocks
         
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
-        this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: false, preserveDrawingBuffer: true}); // Enabled preserveDrawingBuffer for snapshots
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: false, preserveDrawingBuffer: true}); 
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.shadowMap.enabled = true;
@@ -1278,7 +1340,12 @@ const Game = {
     getLevel(xp) { return Math.floor(xp / 1000) + 1; },
     
     getLevelColor(lvl) {
-        if(lvl >= 100) return '#FF0000'; // Max
+        if(lvl >= 150) return '#00FF00'; // Emerald Max
+        if(lvl >= 140) return '#E0115F'; // Ruby
+        if(lvl >= 130) return '#4B0082'; // Indigo
+        if(lvl >= 120) return '#FF4500'; // Orange Red
+        if(lvl >= 110) return '#1E90FF'; // Dodger Blue
+        if(lvl >= 100) return '#FF0000'; // Red Master
         if(lvl >= 75) return '#9D00FF'; // Cosmic
         if(lvl >= 50) return '#B9F2FF'; // Diamond
         if(lvl >= 30) return '#E5E4E2'; // Platinum
@@ -1295,7 +1362,7 @@ const Game = {
             questLevel: this.stats.questLevel,
             upgrades: this.upgrades,
             bestRun: this.bestRun,
-questCompleted: this.stats.questCompleted
+            questCompleted: this.stats.questCompleted
         }));
         UI.updateLevelDisplay();
     },
@@ -1349,17 +1416,22 @@ questCompleted: this.stats.questCompleted
         this.clearScene();
         this.addLights(true); 
 
-        this.enemies = []; this.coins = []; this.props = [];
+        this.enemies = []; this.coins = []; this.props = []; this.stars = [];
         this.stats.time = 0;
-        this.runStats = { coins: 0, gems: 0 }; // Reset Run Stats here properly
+        this.teleportTimer = 30; // for quest 14
+        this.runStats = { coins: 0, gems: 0 }; 
         
         // Setup Quest
         this.activeQuest = null;
         let mapKey = this.currentMap;
+        let extraSpeed = 0;
+        
         if(questId) {
             this.activeQuest = QuestSys.levels.find(q => q.id === questId);
             mapKey = this.activeQuest.map;
-            // Update HUD for quest objective
+            // Quest 15 boost
+            if(questId === 15) extraSpeed = 0.3; 
+            
             const hudObj = document.getElementById('quest-obj-hud');
             if(this.activeQuest.obj === 'coins') hudObj.innerText = `0 / ${this.activeQuest.target} COINS`;
             else if(this.activeQuest.obj === 'gems') hudObj.innerText = `0 / ${this.activeQuest.target} GEMS`;
@@ -1370,18 +1442,54 @@ questCompleted: this.stats.questCompleted
         }
         
         const map = this.maps[mapKey];
-        this.scene.background = new THREE.Color(map.bg);
         
-        if(mapKey === 'jungle_dark') {
-             this.scene.fog = new THREE.Fog(0x000000, 5, 25); // Dark Jungle fog
+        // MAP ENVIRONMENT
+        if(mapKey === 'space') {
+            this.scene.background = new THREE.Color(0x100020);
+            this.scene.fog = new THREE.FogExp2(0x100020, 0.015);
+            // Stars
+            const starsGeo = new THREE.BufferGeometry();
+            const starCount = 1000;
+            const pos = new Float32Array(starCount * 3);
+            for(let i=0;i<starCount*3;i++) pos[i] = (Math.random()-0.5)*400;
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const starMat = new THREE.PointsMaterial({color: 0xffffff, size: 0.5, transparent: true});
+            const starSys = new THREE.Points(starsGeo, starMat);
+            this.scene.add(starSys);
+            this.stars.push(starSys);
+            
+            // Saturn
+            const planet = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 32), new THREE.MeshToonMaterial({color: 0xE0C880}));
+            planet.position.set(-80, 20, -100);
+            const ringGeo = new THREE.RingGeometry(25, 35, 32);
+            const ringMat = new THREE.MeshBasicMaterial({color: 0xC0A060, side: THREE.DoubleSide, transparent:true, opacity:0.8});
+            const rings = new THREE.Mesh(ringGeo, ringMat);
+            rings.rotation.x = Math.PI/2; rings.rotation.y = 0.2;
+            planet.add(rings);
+            this.scene.add(planet);
+            this.saturn = planet;
+            
+            // Neptune (Added per request)
+            const neptune = new THREE.Mesh(new THREE.SphereGeometry(18, 32, 32), Assets.materials.neptuneBlue);
+            neptune.position.set(80, 20, 100);
+            this.scene.add(neptune);
+            this.neptune = neptune;
+
         } else {
-             this.scene.fog = new THREE.Fog(map.bg, 40, 140); 
+            this.scene.background = new THREE.Color(map.bg);
+            if(mapKey === 'jungle_dark') {
+                 this.scene.fog = new THREE.Fog(0x000000, 5, 25); 
+            } else {
+                 this.scene.fog = new THREE.Fog(map.bg, 40, 140); 
+            }
         }
         
         // Island (Circular Ground)
         this.zone.radius = mapKey === 'intro' ? 60 : 120; 
         this.zone.target = this.zone.radius; 
-        this.zone.time = 60;
+        this.zone.time = (questId === 11) ? 10 : 60; // Quest 11 starts shrinking faster
+        
+        // Ground Mesh
         const groundGeo = new THREE.CylinderGeometry(1, 1, 1, 64);
         this.ground = new THREE.Mesh(groundGeo, new THREE.MeshToonMaterial({color: map.color}));
         this.ground.position.y = -0.5; 
@@ -1389,31 +1497,36 @@ questCompleted: this.stats.questCompleted
         this.ground.receiveShadow = true; 
         this.scene.add(this.ground);
 
-        // Water (Surrounding Plane)
-        this.water = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), Assets.materials.waterBlue);
-        this.water.rotation.x = -Math.PI/2;
-        this.water.position.y = -0.55; 
-        this.scene.add(this.water);
+        // Surrounding Plane
+        if(mapKey !== 'space') {
+            this.water = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), Assets.materials.waterBlue);
+            this.water.rotation.x = -Math.PI/2;
+            this.water.position.y = -0.55; 
+            this.scene.add(this.water);
+        }
         
-        // Use active slot colors
+        // Player Init
         const activeColors = Customize.slots[Customize.activeSlot].colors;
-        const pObj = Assets.createPlayer(activeColors);
+        const isSpace = mapKey === 'space';
+        const pObj = Assets.createPlayer(activeColors, isSpace);
         this.player = {
             mesh: pObj.mesh, limbs: pObj.limbs,
             pos: new THREE.Vector3(0,0,0), vel: new THREE.Vector3(0,0,0),
-            hp: 3 + this.upgrades.hp, speed: 32 + (this.upgrades.speed * 1.12),
+            hp: (questId === 13) ? 1 : (3 + this.upgrades.hp),
+            speed: (32 + (this.upgrades.speed * 1.12)) * (1 + extraSpeed),
             invuln: 0, dashCd: 0
         };
         this.scene.add(this.player.mesh);
         
-        const propCount = mapKey === 'studio' ? 25 : mapKey === 'city' ? 60 : mapKey === 'intro' ? 60 : 80;
+        // Props Generation
+        const propCount = mapKey === 'studio' ? 25 : mapKey === 'city' ? 60 : mapKey === 'intro' ? 60 : mapKey === 'space' ? 40 : 80;
         for(let i=0; i<propCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const r = Math.sqrt(Math.random()) * (this.zone.radius - 5);
             const x = Math.cos(angle) * r;
             const z = Math.sin(angle) * r;
             
-            let mesh, radius = 1.5; let isTumbleweed = false;
+            let mesh, radius = 1.5; let isMoving = false;
             
             if(mapKey === 'forest' || mapKey === 'jungle_dark') mesh = Assets.createTree();
             else if(mapKey === 'intro') {
@@ -1425,16 +1538,15 @@ questCompleted: this.stats.questCompleted
                 mesh.scale.set(1.5, 1.5, 1.5); radius = 2.5; 
             }
             else if(mapKey === 'desert') {
-                if(Math.random() < 0.2) { mesh = Assets.createTumbleweed(); isTumbleweed = true; radius = 0.5; mesh.position.y = 0.5; } 
+                if(Math.random() < 0.2) { mesh = Assets.createTumbleweed(); isMoving = true; radius = 0.5; mesh.position.y = 0.5; } 
                 else { mesh = Assets.createCactus(); }
             }
             else if(mapKey === 'city') {
                 if(Math.random() < 0.95) {
-                    mesh = Assets.createSkyscraper();
-                    radius = 2.5; 
+                    mesh = Assets.createSkyscraper(); radius = 2.5; 
                 } else {
                     const parkGroup = new THREE.Group();
-                    const tree = Assets.createTree(); parkGroup.add(tree);
+                    parkGroup.add(Assets.createTree());
                     const bench = Assets.createBench(); bench.position.set(1, 0, 1); bench.rotation.y = Math.random(); parkGroup.add(bench);
                     mesh = parkGroup;
                 }
@@ -1445,15 +1557,22 @@ questCompleted: this.stats.questCompleted
                     this.scene.add(road);
                 }
             }
+            else if(mapKey === 'space') {
+                 if(Math.random() < 0.2) {
+                     mesh = Assets.createSatellite(); radius = 1.0; isMoving = true; mesh.position.y = 2;
+                 } else {
+                     mesh = Assets.createAsteroid(); radius = 1.0; isMoving = true; mesh.position.y = 1;
+                 }
+            }
             else mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1 + Math.random()), new THREE.MeshToonMaterial({color:0x777777}));
             
-            if(!isTumbleweed) {
+            if(!isMoving) {
                 mesh.position.set(x, mapKey!=='forest' && mapKey!=='intro' && mapKey!=='jungle_dark' && mapKey!=='studio' && mapKey!=='desert' && mapKey!=='city' ? 1 : 0, z);
                 if(mapKey === 'forest' || mapKey === 'desert' || mapKey === 'intro') mesh.rotation.y = Math.random() * Math.PI;
-            } else { mesh.position.set(x, 0.5, z); }
+            } else { mesh.position.set(x, mesh.position.y, z); }
             
             this.scene.add(mesh);
-            this.props.push({mesh, r: radius, isTumbleweed, vel: isTumbleweed ? new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize().multiplyScalar(5) : null});
+            this.props.push({mesh, r: radius, isMoving, vel: isMoving ? new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize().multiplyScalar(mapKey==='space'?2:5) : null});
         }
         
         // Quest Initial Spawns
@@ -1471,36 +1590,44 @@ questCompleted: this.stats.questCompleted
     },
 
     spawnEnemy(forcedType = null, minDist = 0) {
-        if(this.activeQuest && this.activeQuest.preSpawnMilo && !forcedType) return; // Only initial spawn for Level 6
+        if(this.activeQuest && this.activeQuest.preSpawnMilo && !forcedType) return; 
 
         const angle = Math.random() * Math.PI * 2; const r = this.zone.radius * 0.9; 
         const x = Math.cos(angle) * r;
         const z = Math.sin(angle) * r;
         
-        // Check distance if required
         if(minDist > 0 && this.player) {
              if(new THREE.Vector3(x,0,z).distanceTo(this.player.pos) < minDist) return;
         }
 
         let type = 'amar'; 
         
-        // Quest overrides
+        // Quest Logic
         if(this.activeQuest && this.activeQuest.enemies) {
             type = this.activeQuest.enemies[Math.floor(Math.random() * this.activeQuest.enemies.length)];
         } else if (forcedType) {
             type = forcedType;
         } else {
+            // Space Map: No Amar
+            const map = this.currentMap;
             const rand = Math.random();
-            if (rand < 0.10) { if(this.currentMap === 'ice' || this.currentMap === 'studio' || this.currentMap === 'city') type = 'cosmo'; }
-            else if (rand < 0.25) { if(this.currentMap !== 'ice') type = 'timosha'; }
-            else if (rand < 0.55) type = 'milo';
+            if(map === 'space') {
+                 if(rand < 0.3) type = 'cosmo';
+                 else if(rand < 0.6) type = 'timosha';
+                 else type = 'milo';
+            } else {
+                if (rand < 0.10) { if(map === 'ice' || map === 'studio' || map === 'city') type = 'cosmo'; }
+                else if (rand < 0.25) { if(map !== 'ice') type = 'timosha'; }
+                else if (rand < 0.55) type = 'milo';
+            }
         }
 
+        const isSpace = (this.activeQuest?.map === 'space' || this.currentMap === 'space');
         let obj, speed;
-        if(type === 'cosmo') { obj = Assets.createCosmo(); speed = 6.3 + Math.min(this.stats.time/30, 4); }
-        else if(type === 'timosha') { obj = Assets.createTimosha(); speed = 8.73 + Math.min(this.stats.time/30, 6); }
-        else if(type === 'milo') { obj = Assets.createMilo(); speed = 9.5 + Math.min(this.stats.time/30, 6); }
-        else { obj = Assets.createAmar(); speed = 9.0 + Math.min(this.stats.time/30, 6); }
+        if(type === 'cosmo') { obj = Assets.createCosmo(isSpace); speed = 6.3 + Math.min(this.stats.time/30, 4); }
+        else if(type === 'timosha') { obj = Assets.createTimosha(isSpace); speed = 8.73 + Math.min(this.stats.time/30, 6); }
+        else if(type === 'milo') { obj = Assets.createMilo(isSpace); speed = 9.5 + Math.min(this.stats.time/30, 6); }
+        else { obj = Assets.createAmar(isSpace); speed = 9.0 + Math.min(this.stats.time/30, 6); }
         
         obj.mesh.position.set(x, 0, z); this.scene.add(obj.mesh);
         this.enemies.push({
@@ -1537,7 +1664,6 @@ questCompleted: this.stats.questCompleted
         this.scene.add(this.labEnvironment);
 
         const data = this.textureData[idx];
-        // Pass tempColors if it's player, otherwise null
         const obj = data.create(idx === 0 ? Customize.tempColors : null);
         this.textureModel = obj.mesh;
         this.textureModel.position.set(0, 0, 0);
@@ -1550,28 +1676,23 @@ questCompleted: this.stats.questCompleted
         document.getElementById('tex-title').innerText = data.name;
         document.getElementById('tex-desc').innerText = data.desc;
         
-        // Show Customize button only for Einar
         document.getElementById('customize-btn').style.display = (idx === 0) ? 'block' : 'none';
     },
 
     loadCustomizeScene() {
         this.clearScene();
-        // Bright, clear lighting for customization
         const amb = new THREE.AmbientLight(0xffffff, 1.0); this.scene.add(amb);
         const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(2, 5, 5); this.scene.add(dir);
-        this.scene.background = new THREE.Color(0x1a1a2e); // Match menu/dark theme but clear
+        this.scene.background = new THREE.Color(0x1a1a2e); 
 
-        // Player with temp colors
         const obj = Assets.createPlayer(Customize.tempColors);
         this.textureModel = obj.mesh;
         this.textureModel.position.set(0, 0, 0);
         this.scene.add(this.textureModel);
         
-        // Setup initial camera
         this.camera.position.set(0, 2, 4);
         this.camera.lookAt(0, 1.5, 0);
         
-        // Setup targets for lerp
         this.custCamTarget.set(0, 2, 4);
         this.custCamLookAt.set(0, 1.5, 0);
     },
@@ -1582,15 +1703,11 @@ questCompleted: this.stats.questCompleted
             const obj = Assets.createPlayer(colors);
             this.textureModel = obj.mesh;
             this.textureModel.position.set(0, 0, 0);
-            this.textureModel.rotation.y = 0; // Reset rot or keep? Better keep.
-            // Actually, let's keep rotation
-            // this.textureModel.rotation.y = oldRot; 
             this.scene.add(this.textureModel);
         }
     },
     
     setCameraTarget(part) {
-        // "Right side" is where character is. Move camera slightly left to center char in right space
         const xOffset = 0; 
         if(part === 'Head' || part === 'Hair' || part === 'Eyes') {
             this.custCamTarget.set(xOffset, 2.3, 2);
@@ -1602,7 +1719,6 @@ questCompleted: this.stats.questCompleted
             this.custCamTarget.set(xOffset, 0.8, 2.5);
             this.custCamLookAt.set(xOffset, 0.8, 0);
         } else {
-            // Shirt/Skin/Backpack
             this.custCamTarget.set(xOffset, 1.4, 2.5);
             this.custCamLookAt.set(xOffset, 1.4, 0);
         }
@@ -1626,9 +1742,7 @@ questCompleted: this.stats.questCompleted
         }
 
         if(this.state === 'customize') {
-            // Camera Lerp
             this.camera.position.lerp(this.custCamTarget, dt * 3);
-            // Interpolate lookAt manually or just lookAt
             const currentLook = new THREE.Vector3();
             this.camera.getWorldDirection(currentLook);
             const targetDir = new THREE.Vector3().subVectors(this.custCamLookAt, this.camera.position).normalize();
@@ -1638,7 +1752,6 @@ questCompleted: this.stats.questCompleted
             return;
         }
         
-        // Reuse menu animation for Quest scene with Amar
         if(this.state === 'menu' || this.state === 'questMenu') {
             this.menuAnim.time += dt * 10; const t = this.menuAnim.time;
             if(this.menuAnim.player) {
@@ -1656,14 +1769,28 @@ questCompleted: this.stats.questCompleted
         const secs = Math.floor(this.stats.time % 60).toString().padStart(2, '0');
         document.getElementById('hud-center').innerText = `${mins}:${secs}`;
         
+        // --- QUEST SPECIFIC UPDATES ---
+        
+        // Quest 14: Fracture (Random Teleport)
+        if(this.activeQuest && this.activeQuest.id === 14) {
+            this.teleportTimer -= dt;
+            if(this.teleportTimer <= 0) {
+                 this.teleportTimer = 30; // Reset
+                 // Teleport player
+                 const angle = Math.random() * Math.PI * 2;
+                 const r = Math.random() * (this.zone.radius - 5);
+                 this.player.pos.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
+                 // Flash Effect (Visual Hack)
+                 document.body.style.background = 'white';
+                 setTimeout(()=>document.body.style.background = 'var(--bg-dark)', 100);
+            }
+        }
+
         // Quest Win Condition Logic
         if(this.activeQuest) {
             let won = false;
             let currentVal = 0;
             if(this.activeQuest.obj === 'coins') {
-                 // We need to track coins collected THIS RUN. 
-                 // Simple hack: We'll count active coins = starting coins + spawned. 
-                 // Better: store runCoins
                  currentVal = this.runStats.coins;
                  if(currentVal >= this.activeQuest.target) won = true;
                  document.getElementById('quest-obj-hud').innerText = `${currentVal} / ${this.activeQuest.target} COINS`;
@@ -1686,16 +1813,27 @@ questCompleted: this.stats.questCompleted
         // Shrinking Logic
         this.zone.time -= dt;
         if(this.zone.time <= 0) {
+            const isFracture = this.activeQuest && this.activeQuest.id === 14;
             const shrink = 0.1 + Math.random() * 0.1; // 10-20%
             this.zone.target = Math.max(30, this.zone.radius * (1 - shrink));
-            this.zone.time = 60; // Reset to 60s
+            
+            // Time until next shrink
+            if(this.activeQuest && this.activeQuest.id === 11) this.zone.time = 10;
+            else if (isFracture) this.zone.time = 20 + Math.random() * 20;
+            else this.zone.time = 60;
+            
             document.getElementById('zone-warning').style.opacity = 1;
             setTimeout(()=>document.getElementById('zone-warning').style.opacity=0, 3000);
         }
         this.zone.radius += (this.zone.target - this.zone.radius) * dt * 0.5;
         this.ground.scale.set(this.zone.radius, 1, this.zone.radius); // Scale Island
 
-        const desiredEnemies = Math.floor(this.stats.time / 10) + 1;
+        // Spawn Logic
+        let spawnRate = 10; // Every 10s default
+        // Quest 12: Overload (Spawn twice as fast)
+        if(this.activeQuest && this.activeQuest.id === 12) spawnRate = 5;
+        
+        const desiredEnemies = Math.floor(this.stats.time / spawnRate) + 1;
         if(this.enemies.length < desiredEnemies && this.stats.time > 3) this.spawnEnemy();
         if(this.coins.length < 10) this.spawnCoin();
 
@@ -1717,13 +1855,17 @@ questCompleted: this.stats.questCompleted
         const frictionFactor = Math.pow(map.friction, dt * 60);
         p.vel.multiplyScalar(frictionFactor);
         
+        // SPEED FIX: Clamp velocity to prevent runaway acceleration on low friction maps
+        if(p.vel.length() > p.speed * 1.5) p.vel.setLength(p.speed * 1.5);
+        
         // Island Bound Collision
         if(p.pos.length() > this.zone.radius) {
             p.pos.normalize().multiplyScalar(this.zone.radius);
-            p.vel.multiplyScalar(0.5); // Slow down on hit
+            p.vel.multiplyScalar(0.5); 
         }
         p.mesh.position.copy(p.pos);
 
+        // Animation
         const speed = p.vel.length(); const animTime = this.stats.time * 15;
         if(speed > 0.5) {
             p.limbs.legL.rotation.x = Math.sin(animTime) * 0.8; p.limbs.legR.rotation.x = Math.sin(animTime + Math.PI) * 0.8;
@@ -1731,7 +1873,7 @@ questCompleted: this.stats.questCompleted
         } else { p.limbs.legL.rotation.x = 0; p.limbs.legR.rotation.x = 0; }
 
         this.props.forEach(prop => {
-            if(prop.isTumbleweed) {
+            if(prop.isMoving) {
                  prop.mesh.position.add(prop.vel.clone().multiplyScalar(dt));
                  prop.mesh.rotation.z -= dt * 5; prop.mesh.rotation.x -= dt * 3;
                  if(prop.mesh.position.length() > this.zone.radius) prop.vel.multiplyScalar(-1);
@@ -1788,6 +1930,12 @@ questCompleted: this.stats.questCompleted
                 UI.updateHUD();
             }
         });
+        
+        // Stars Animation in Space
+        if(this.saturn && this.stars.length > 0) {
+            this.stars[0].rotation.y += dt * 0.05;
+            this.saturn.rotation.y += dt * 0.1;
+        }
 
         this.camera.position.x += (p.pos.x - this.camera.position.x) * 3 * dt;
         this.camera.position.z += (p.pos.z + 25 - this.camera.position.z) * 3 * dt;
@@ -1807,12 +1955,12 @@ questCompleted: this.stats.questCompleted
 
     useAbility() {
         if(this.state !== 'play') return;
-        if(this.activeQuest && this.activeQuest.noDash) return; // Disable dash if quest
+        if(this.activeQuest && this.activeQuest.noDash) return; 
         
         const p = this.player;
         if(p.dashCd <= 0) {
             const dir = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), p.mesh.rotation.y);
-            const turboMult = 1 + (this.upgrades.turbo || 0) * 0.2; // +20% per level
+            const turboMult = 1 + (this.upgrades.turbo || 0) * 0.2; 
             p.vel.add(dir.multiplyScalar(30 * turboMult)); 
             p.dashCd = 2.0; AudioSys.sfx.dash();
             const btn = document.getElementById('ability-btn');
@@ -1822,8 +1970,18 @@ questCompleted: this.stats.questCompleted
 
     gameOver(questWin = false) {
         this.state = 'gameover'; UI.showHUD(false); UI.setScreen('gameover');
+
+if(this.activeQuest && this.activeQuest.id === 10){
+    if(!Game.stats.questCompleted) Game.stats.questCompleted = {};
+    Game.stats.questCompleted[10] = true;
+
+    if(this.stats.questLevel === 10){
+        this.stats.questLevel = 11;
+    }
+
+    Game.save();
+}
         
-        // Add run earnings to total
         let finalCoins = this.runStats.coins;
         let finalGems = this.runStats.gems;
         
@@ -1834,13 +1992,21 @@ questCompleted: this.stats.questCompleted
                 document.getElementById('end-title').style.color = "#00FF00";
                 AudioSys.sfx.quest_win();
                 
-                // Base Reward only first completion
-if(!Game.stats.questCompleted) Game.stats.questCompleted = {};
-
-if(!Game.stats.questCompleted[this.activeQuest.id]) {
-    finalCoins += 5;
-    Game.stats.questCompleted[this.activeQuest.id] = true;
-}
+                // One time completion reward
+                if(!Game.stats.questCompleted) Game.stats.questCompleted = {};
+                
+                if(!Game.stats.questCompleted[this.activeQuest.id]) {
+                    // Specific Rewards
+                    if(this.activeQuest.id === 15) {
+                        finalCoins += 5; // +5 standard
+                        // Plus special bonus
+                        finalCoins += 5;
+                        finalGems += 5;
+                    } else {
+                        finalCoins += 5;
+                    }
+                    Game.stats.questCompleted[this.activeQuest.id] = true;
+                }
                 
                 // Show Amar Message
                 UI.showQuestDialog(this.activeQuest.msg);
@@ -1850,7 +2016,7 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
                     this.stats.questLevel++;
                 }
             } else if (this.activeQuest.obj === 'survival' && this.activeQuest.id === 10) {
-                 // Level 10 Logic
+                 // Level 10 Logic (FIXED UNLOCK LOGIC)
                  const t = this.stats.time;
                  let qCoins = 0; let qGems = 0;
                  if(t < 60) qCoins = 5;
@@ -1869,6 +2035,13 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
                  document.getElementById('end-title').style.color = "#00FF00";
                  UI.showQuestDialog(this.activeQuest.msg);
                  AudioSys.sfx.quest_win();
+
+                 // UNLOCK QUEST 11 IF SURVIVED AT LEAST 60s
+                 if(t >= 60) {
+                     if(!Game.stats.questCompleted[10]) Game.stats.questCompleted[10] = true;
+                     if(this.stats.questLevel === 10) this.stats.questLevel++;
+                 }
+
             } else {
                 document.getElementById('end-title').innerText = "FAILED";
                 document.getElementById('end-title').style.color = "#FF5252";
@@ -1883,14 +2056,13 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
         this.stats.gems += finalGems;
         
         // --- EXPERIENCE LOGIC ---
-        // Global Change: XP only after 15s
         let xpEarned = 0;
         if(this.stats.time > 15) {
             xpEarned = Math.floor(this.stats.time * 10);
         }
         
         const oldLevel = this.getLevel(this.stats.xp);
-        this.stats.xp = Math.min(100000, this.stats.xp + xpEarned);
+        this.stats.xp = Math.min(200000, this.stats.xp + xpEarned); 
         const newLevel = this.getLevel(this.stats.xp);
         
         // Best Run Check
@@ -1898,7 +2070,6 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
             this.bestRun = { map: this.maps[this.currentMap].name, time: this.stats.time };
         }
         
-        // Reset animation UI
         document.getElementById('xp-text').innerText = `+${xpEarned} XP`;
         document.getElementById('xp-bar').style.width = '0%';
         document.getElementById('res-lvl').innerText = oldLevel;
@@ -1917,7 +2088,7 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
                     document.getElementById('res-lvl').innerText = newLevel;
                     document.getElementById('res-star').style.color = this.getLevelColor(newLevel);
                     document.getElementById('lvl-up-msg').style.display = 'block';
-                    this.stats.gems += (newLevel - oldLevel); // +1 Gem per level
+                    this.stats.gems += (newLevel - oldLevel); 
                     
                     // Check Unlocks
                     let unlockText = "";
@@ -1925,6 +2096,7 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
                     else if(oldLevel < 25 && newLevel >= 25) unlockText = "UNLOCKED: ARCTIC";
                     else if(oldLevel < 55 && newLevel >= 55) unlockText = "UNLOCKED: STUDIO";
                     else if(oldLevel < 80 && newLevel >= 80) unlockText = "UNLOCKED: CITY";
+                    else if(oldLevel < 130 && newLevel >= 130) unlockText = "UNLOCKED: SPACE";
                     
                     if(unlockText) {
                         const msg = document.getElementById('unlock-msg');
@@ -1989,7 +2161,6 @@ if(!Game.stats.questCompleted[this.activeQuest.id]) {
             if(k === 's' || k === 'ы') this.keys.s = false; if(k === 'd' || k === 'в') this.keys.d = false;
         });
 
-        // Rotation logic handles both texture viewer and customize mode
         const texArea = document.getElementById('tex-touch-area');
         const custArea = document.getElementById('cust-3d-area');
         let isDrag = false; let lastX = 0;
@@ -2045,7 +2216,7 @@ const UI = {
             const div = document.createElement('div');
             div.className = `card ${k===Game.currentMap?'selected':''} ${locked?'locked':''}`;
             div.innerHTML = `
-                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':k=='studio'?'🏢':'🏙️'}</div>
+                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':k=='studio'?'🏢':k=='city'?'🏙️':'🪐'}</div>
                 <div>${m.name}</div>
                 <div class="lock-icon">🔒</div>
                 ${locked ? `<div class="lvl-req">LVL ${m.levelReq}</div>` : ''}
@@ -2085,7 +2256,7 @@ const UI = {
     toQuests() {
         if(!QuestSys.unlocked) {
             // Confirm purchase
-            this.pendingColor = { name: "Quests Mode", hex: 0x9C27B0, isQuest: true }; // Hacky reuse of color obj
+            this.pendingColor = { name: "Quests Mode", hex: 0x9C27B0, isQuest: true }; 
             const modal = document.getElementById('modal');
             document.getElementById('modal-text').innerText = "Unlock Quests for 30 Gems?";
             document.getElementById('modal-preview').style.backgroundColor = "#9C27B0";
@@ -2096,18 +2267,16 @@ const UI = {
         Game.state = 'questMenu';
         UI.setScreen('quests');
         
-        // Render Amar in background
         Game.clearScene();
         Game.addLights(false);
         const a = Assets.createAmar();
         a.mesh.position.set(0, -1.2, 0);
-a.mesh.scale.set(1.6, 1.6, 1.6);
+        a.mesh.scale.set(1.6, 1.6, 1.6);
         a.mesh.rotation.y = -0.5;
         Game.scene.add(a.mesh);
         Game.menuAnim = { player: null, enemy: null, time: 0 };
-// camera same as normal gameplay (offset behind target)
-Game.camera.position.set(3, 2.5, 5);
-Game.camera.lookAt(0, 0.5, 0);
+        Game.camera.position.set(3, 2.5, 5);
+        Game.camera.lookAt(0, 0.5, 0);
         
         document.getElementById('quest-dialogue').innerText = "Hello, welcome to Quests! Complete levels and uncover secrets!";
         
@@ -2121,13 +2290,12 @@ Game.camera.lookAt(0, 0.5, 0);
             div.innerHTML = `
                 <div>
                     <div class="quest-title">Level ${q.id}: ${q.name}</div>
-                    <div class="quest-desc">${locked ? 'Locked' : q.obj ? 'Task: '+q.target : 'Survive: '+q.dur+'s'}</div>
+                    <div class="quest-desc">${completed ? 'Completed' : locked ? 'Locked' : q.obj ? 'Task: '+q.target : 'Survive: '+q.dur+'s'}</div>
                 </div>
                 <div>${completed ? '✅' : locked ? '🔒' : '▶'}</div>
             `;
-            if(!locked) {
+            if(!locked && !completed) {
                 div.onclick = () => {
-                     // Start Quest
                      Game.start(q.id);
                 };
             }
@@ -2136,15 +2304,13 @@ Game.camera.lookAt(0, 0.5, 0);
     },
     
     showQuestDialog(msg) {
-        // Reuse the quest menu UI overlay on top of game over? No, just alert for now or simple overlay
-        // We'll inject it into gameover screen actually
         const go = document.getElementById('gameover');
         let box = document.getElementById('end-dialogue');
         if(!box) {
             box = document.createElement('div');
             box.id = 'end-dialogue';
             box.style = "background:rgba(0,0,0,0.8); border:2px solid #FFB300; padding:15px; border-radius:10px; margin-bottom:10px; max-width:80%; font-style:italic;";
-            go.insertBefore(box, go.children[2]); // Insert after title/score
+            go.insertBefore(box, go.children[2]); 
         }
         box.innerText = `Amar says: "${msg}"`;
         box.style.display = 'block';
@@ -2195,7 +2361,7 @@ Game.camera.lookAt(0, 0.5, 0);
     pendingColor: null,
     showBuyModal(colorObj) {
         if(Game.stats.gems < 5) {
-             alert("Not enough gems!"); return; // Simple fallback
+             alert("Not enough gems!"); return; 
         }
         this.pendingColor = colorObj;
         const modal = document.getElementById('modal');
