@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einar vs Amar: Space Update</title>
+    <title>Einar vs Amar: Macaroni Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -52,7 +52,7 @@
             text-align: center;
         }
 
-        /* CUSTOMIZE SCREEN (New Layout) */
+        /* CUSTOMIZE SCREEN */
         #customize {
             background: transparent;
             flex-direction: row;
@@ -125,7 +125,7 @@
             position: relative;
         }
 
-        /* CROWN FOR LVL 100 */
+        /* CROWN FOR LVL 100+ */
         #master-crown {
             position: absolute; top: -50px; left: 50%; transform: translateX(-50%) rotate(3deg);
             font-size: 50px; filter: drop-shadow(0 0 10px gold);
@@ -147,6 +147,19 @@
             pointer-events: auto;
             margin-bottom: 20px;
             max-width: 95vw;
+            /* Fix for vertical mobile scrolling */
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        /* Mobile specific adjustment for card container */
+        @media (max-width: 600px) and (orientation: portrait) {
+            .card-container {
+                justify-content: flex-start; /* Allows scrolling from start */
+                padding-left: 50%; /* Center start */
+                margin-left: -50%; /* Counteract padding */
+                width: 200%; /* Force width for scroll */
+                transform: translateX(-25%); /* Re-center visually */
+            }
         }
 
         .card {
@@ -157,6 +170,7 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.5);
             position: relative;
             opacity: 1; filter: grayscale(0);
+            flex-shrink: 0; /* Prevent squishing */
         }
         .card.locked { opacity: 0.6; filter: grayscale(1); cursor: not-allowed; }
         .card.selected { border-color: var(--primary); transform: translateY(-5px); background: #33334d; }
@@ -385,6 +399,20 @@
         @keyframes popIn { from{transform:scale(0);} to{transform:scale(1);} }
         
         #loader { background: #111; z-index: 100; color: var(--primary); font-family: var(--font-main); font-size: 24px; }
+
+        /* MACARONI PATTERN ANIMATION */
+        @keyframes macaroniMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+        .macaroni-bg {
+            /* Fallback pattern if 3D scene is covered */
+            background-image: radial-gradient(#FFD54F 2px, transparent 2px), radial-gradient(#FFD54F 2px, transparent 2px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+            background-color: #FFEEAA;
+            animation: macaroniMove 2s linear infinite;
+        }
 
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -688,7 +716,15 @@ const Assets = {
         neptuneBlue: new THREE.MeshToonMaterial({color: 0x4b70dd}),
 
         // TORNADO
-        tornadoGrey: new THREE.MeshStandardMaterial({color: 0x555555, transparent: true, opacity: 0.8, roughness: 1})
+        tornadoGrey: new THREE.MeshStandardMaterial({color: 0x555555, transparent: true, opacity: 0.8, roughness: 1}),
+        
+        // MACARONI
+        macaroniYellow: new THREE.MeshToonMaterial({color: 0xFFD54F}),
+        plateWhite: new THREE.MeshStandardMaterial({color: 0xFFFFFF, roughness: 0.2}),
+        forkSilver: new THREE.MeshStandardMaterial({color: 0xCCCCCC, metalness: 0.8, roughness: 0.2}),
+        burgerBun: new THREE.MeshToonMaterial({color: 0xDDAA55}),
+        burgerMeat: new THREE.MeshToonMaterial({color: 0x552200}),
+        burgerLettuce: new THREE.MeshToonMaterial({color: 0x44AA22})
     },
     
     // Helper to add spacesuit parts
@@ -871,11 +907,26 @@ const Assets = {
         return { mesh: group, wings: [wingL, wingR] };
     },
 
-    createCosmo(isSpace = false) {
+    createCosmo(isSpace = false, isBurger = false) {
         const group = new THREE.Group();
         const grey = this.materials.miloGrey; const skin = this.materials.skin;
-        const body = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), grey);
-        body.scale.set(1, 0.8, 1.2); body.position.y = 0.3; body.castShadow = true; group.add(body);
+        
+        let body;
+        if(isBurger) {
+            // Burger Body for Q40
+            body = new THREE.Group();
+            const bunBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16), this.materials.burgerBun);
+            const meat = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.1, 16), this.materials.burgerMeat); meat.position.y = 0.1;
+            const lettuce = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.05, 16), this.materials.burgerLettuce); lettuce.position.y = 0.18;
+            const bunTop = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16, 0, Math.PI*2, 0, Math.PI/2), this.materials.burgerBun); bunTop.position.y = 0.2; bunTop.scale.y = 0.8;
+            body.add(bunBottom, meat, lettuce, bunTop);
+            body.position.y = 0.3;
+        } else {
+            body = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), grey);
+            body.scale.set(1, 0.8, 1.2); body.position.y = 0.3; body.castShadow = true; 
+        }
+        group.add(body);
+        
         const earGeo = new THREE.SphereGeometry(0.1, 8, 8);
         const earL = new THREE.Mesh(earGeo, skin); earL.position.set(0.25, 0.5, 0.1);
         const earR = earL.clone(); earR.position.set(-0.25, 0.5, 0.1); group.add(earL, earR);
@@ -1067,6 +1118,38 @@ const Assets = {
         }
         group.add(swirls);
         group.userData = { swirls: swirls };
+        return group;
+    },
+
+    // MACARONI PROPS
+    createPlateWithMacaroni() {
+        const group = new THREE.Group();
+        // Plate
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(2, 1.5, 0.2, 32), this.materials.plateWhite);
+        plate.position.y = 0.1;
+        group.add(plate);
+        // Macaroni pile
+        for(let i=0; i<8; i++) {
+            const mac = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.1, 8, 16, Math.PI), this.materials.macaroniYellow);
+            mac.position.set((Math.random()-0.5)*2, 0.3 + Math.random()*0.5, (Math.random()-0.5)*2);
+            mac.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+            group.add(mac);
+        }
+        return group;
+    },
+    createGiantFork() {
+        const group = new THREE.Group();
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 0.1), this.materials.forkSilver);
+        handle.position.y = 1.5;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.1, 0.1), this.materials.forkSilver);
+        head.position.y = 3;
+        const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.8, 0.05), this.materials.forkSilver); t1.position.set(-0.2, 3.4, 0);
+        const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.8, 0.05), this.materials.forkSilver); t2.position.set(0, 3.4, 0);
+        const t3 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.8, 0.05), this.materials.forkSilver); t3.position.set(0.2, 3.4, 0);
+        group.add(handle, head, t1, t2, t3);
+        // Stick into ground
+        group.rotation.x = Math.PI/6;
+        group.rotation.z = (Math.random()-0.5)*0.5;
         return group;
     }
 };
@@ -1283,7 +1366,23 @@ const QuestSys = {
         { id: 22, name: "Orbital Drift", map: 'space', dur: 112, msg: "You drifted through the stars and remained grounded." },
         { id: 23, name: "Eternal Mixed", map: 'studio', obj: 'gems', target: 3, msg: "Chaos comes in cycles. You broke the loop." },
         { id: 24, name: "Wind Tunnel", map: 'desert', dur: 110, msg: "The winds howl, but you stand strong." },
-        { id: 25, name: "Apocalypse", map: 'city', obj: 'survival', enemies: ['amar', 'milo'], msg: "You survived the end of the world. What comes next?" }
+        { id: 25, name: "Apocalypse", map: 'city', obj: 'survival', enemies: ['amar', 'milo'], msg: "You survived the end of the world. What comes next?" },
+        // NEW LEVELS 26-40
+        { id: 26, name: "Unpleasant Mail", map: 'bamboo', dur: 100, msg: "Death from above. You dodged it all." },
+        { id: 27, name: "Mixed Controls", map: 'desert', dur: 95, msg: "Your mind adapted when your body was confused." },
+        { id: 28, name: "Inside the Entity", map: 'forest', dur: 105, msg: "Seeing through the enemy's eyes gave you the advantage." },
+        { id: 29, name: "Skin of Power", map: 'ice', dur: 162, msg: "They fear you. As they should." },
+        { id: 30, name: "Mirage", map: 'desert', obj: 'coins', target: 11, enemies: ['cosmo'], msg: "The heat plays tricks, but your greed is real." },
+        { id: 31, name: "Outside the Air", map: 'space', dur: 150, msg: "Vacuum and storms. Space is harsh." },
+        { id: 32, name: "Fusion", map: 'studio', dur: 160, enemies: ['cosmo'], singleEnemy: true, msg: "A giant foe is just a bigger target." },
+        { id: 33, name: "Time Echo", map: 'city', dur: 90, enemies: ['timosha'], msg: "You outran your own shadow." },
+        { id: 34, name: "Safety?", map: 'forest', dur: 115, preSpawn: false, msg: "The safe zone was a trap. You survived anyway." },
+        { id: 35, name: "Predator", map: 'forest', dur: 146, enemies: ['amar', 'cosmo'], msg: "The hunters became the hunted." },
+        { id: 36, name: "Probably Gravity", map: 'space', dur: 90, enemies: ['timosha'], msg: "Planetary forces bow to you." },
+        { id: 37, name: "Rains", map: 'bamboo', dur: 110, msg: "Storms pass. You remain." },
+        { id: 38, name: "Machine Uprising", map: 'city', dur: 149, msg: "The city crumbled, but you stood tall." },
+        { id: 39, name: "Poseidon", map: 'poseidon', dur: 100, msg: "Water is treacherous. You stayed afloat." }, // Using special map key
+        { id: 40, name: "Edible Adventure", map: 'macaroni', obj: 'survival', enemies: ['cosmo'], msg: "A delicious victory!" }
     ],
     init() {
         const s = localStorage.getItem('einar_quests_v1');
@@ -1315,11 +1414,13 @@ const Game = {
         ice: { name: "Arctic", color: 0xB3E5FC, bg: 0xE1F5FE, friction: 0.85, levelReq: 25 }, 
         studio: { name: "Studio", color: 0x424242, bg: 0x616161, friction: 0.82, levelReq: 55 },
         city: { name: "City", color: 0x333333, bg: 0x111122, friction: 0.83, levelReq: 80 },
-        // Changed friction to 0.96 to prevent uncontrollable sliding
         space: { name: "Space", color: 0x221133, bg: 0x000000, friction: 0.86, levelReq: 130 },
+        macaroni: { name: "Macaroni", color: 0xFFCC00, bg: 0xFFEEAA, friction: 0.85, levelReq: 190 },
         // Quest Maps
         intro: { name: "Intro", color: 0x5D4037, bg: 0x81C784, friction: 0.8, levelReq: 999 },
-        jungle_dark: { name: "Void", color: 0x2E7D32, bg: 0x000000, friction: 0.8, levelReq: 999 }
+        jungle_dark: { name: "Void", color: 0x2E7D32, bg: 0x000000, friction: 0.8, levelReq: 999 },
+        bamboo: { name: "Bamboo", color: 0x8BC34A, bg: 0xAED581, friction: 0.8, levelReq: 999 },
+        poseidon: { name: "Ocean", color: 0x0288D1, bg: 0x81D4FA, friction: 0.8, levelReq: 999 }
     },
     
     scene: null, camera: null, renderer: null, clock: new THREE.Clock(),
@@ -1352,14 +1453,50 @@ const Game = {
     windActive: false,
     windDir: new THREE.Vector3(),
     tornadoStrength: 0,
+    macaroniDust: [], // Particles for macaroni world
+    
+    // Q26 vars
+    fallTimer: 0,
+    // Q27 vars
+    controlDistortionTimer: 0,
+    controlDistortionActive: false,
+    // Q28 vars
+    cameraOverride: null,
+    // Q29 vars
+    fleeTimer: 0,
+    fleeActive: false,
+    // Q30 vars
+    heatDistortion: 0,
+    // Q31 vars
+    gravityTimer: 0,
+    gravityOff: false,
+    smallTornadoTimer: 0,
+    // Q33 vars
+    ghostTimer: 0,
+    // Q34 vars
+    safetyZone: null,
+    safetyActive: false,
+    // Q35 vars
+    giantAmarSpawned: false,
+    giantCosmoSpawned: false,
+    // Q36 vars
+    saturnPullStrength: 0,
+    // Q37 vars
+    rainSystem: null,
+    // Q38 vars
+    earthquakeStrength: 0,
+    // Q39 vars
+    platformRotation: 0,
 
     // Backgrounds
     backgrounds: {
         'default': { name: "Default", unlocked: true, type: 'scene' },
         'forest_timosha': { name: "Forest + Timosha", unlocked: false, cost: 50, curr: 'gems', type: 'scene' },
-        'city_tornado': { name: "City + Tornado", unlocked: false, cost: 350, curr: 'coins', type: 'scene' }
+        'city_tornado': { name: "City + Tornado", unlocked: false, cost: 350, curr: 'coins', type: 'scene' },
+        'apocalypse': { name: "Apocalypse", unlocked: false, cost: 65, curr: 'gems', type: 'scene' }
     },
     currentBg: 'default',
+    meteors: [], // For Apocalypse BG
 
     textureData: [
         { name: "Einar", desc: "A brave traveler.", create: (c) => Assets.createPlayer(c) },
@@ -1416,6 +1553,11 @@ const Game = {
     getLevel(xp) { return Math.floor(xp / 1000) + 1; },
     
     getLevelColor(lvl) {
+        if(lvl >= 200) return '#000000'; // Black Diamond / Void (Max)
+        if(lvl >= 190) return '#FFFF00'; // Macaroni Gold
+        if(lvl >= 180) return '#FF69B4'; // Hot Pink
+        if(lvl >= 170) return '#00CED1'; // Dark Turquoise
+        if(lvl >= 160) return '#8B0000'; // Dark Red
         if(lvl >= 150) return '#00FF00'; // Emerald Max
         if(lvl >= 140) return '#E0115F'; // Ruby
         if(lvl >= 130) return '#4B0082'; // Indigo
@@ -1467,6 +1609,7 @@ const Game = {
         this.clearScene();
         this.addLights(false); 
         this.scene.fog = null;
+        this.meteors = []; // Clear meteors
         
         // Background Logic
         let bgType = this.currentBg;
@@ -1479,11 +1622,27 @@ const Game = {
         } else if (bgType === 'city_tornado') {
             floorColor = this.maps.city.color;
             bgColor = this.maps.city.bg;
+        } else if (bgType === 'apocalypse') {
+            floorColor = 0x111111;
+            bgColor = 0x000000;
         }
         
         this.scene.background = new THREE.Color(bgColor);
-        const menuFloor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshToonMaterial({color: floorColor}));
-        menuFloor.rotation.x = -Math.PI/2; menuFloor.receiveShadow = true; this.scene.add(menuFloor);
+        
+        if(bgType !== 'apocalypse') {
+            const menuFloor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshToonMaterial({color: floorColor}));
+            menuFloor.rotation.x = -Math.PI/2; menuFloor.receiveShadow = true; this.scene.add(menuFloor);
+        } else {
+             // Stars for Apocalypse
+            const starsGeo = new THREE.BufferGeometry();
+            const starCount = 500;
+            const pos = new Float32Array(starCount * 3);
+            for(let i=0;i<starCount*3;i++) pos[i] = (Math.random()-0.5)*50;
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const starMat = new THREE.PointsMaterial({color: 0xffffff, size: 0.1, transparent: true});
+            const starSys = new THREE.Points(starsGeo, starMat);
+            this.scene.add(starSys);
+        }
         
         // Props for background
         if(bgType === 'forest_timosha') {
@@ -1501,6 +1660,9 @@ const Game = {
             torn.position.set(0, 0, -10);
             this.scene.add(torn);
             this.menuAnim = { type: 'tornado', obj: torn, angle: 0 };
+        } else if (bgType === 'apocalypse') {
+            this.menuAnim = { type: 'apocalypse', time: 0 };
+            // Meteors handled in update loop
         } else {
             // Default Einar vs Amar
             const activeColors = Customize.slots[Customize.activeSlot].colors;
@@ -1528,6 +1690,7 @@ const Game = {
         this.addLights(true); 
 
         this.enemies = []; this.coins = []; this.props = []; this.stars = [];
+        this.macaroniDust = [];
         this.stats.time = 0;
         this.teleportTimer = 30; // for quest 14 & 19
         this.antigravity = { active: false, timer: 0, nextTime: 10 + Math.random()*10 };
@@ -1538,14 +1701,37 @@ const Game = {
         this.windActive = false;
         this.windTimer = 0;
         
+        // Reset New Quest Vars
+        this.fallTimer = 10;
+        this.controlDistortionTimer = 20;
+        this.controlDistortionActive = false;
+        this.cameraOverride = null;
+        this.fleeTimer = 30;
+        this.fleeActive = false;
+        this.heatDistortion = 0;
+        this.gravityTimer = 30;
+        this.gravityOff = false;
+        this.smallTornadoTimer = 15;
+        this.ghostTimer = 0;
+        this.safetyZone = null;
+        this.safetyActive = false;
+        this.giantAmarSpawned = false;
+        this.giantCosmoSpawned = false;
+        this.saturnPullStrength = 0;
+        this.rainSystem = null;
+        this.earthquakeStrength = 0;
+        this.platformRotation = 0;
+
         // Setup Quest
         this.activeQuest = null;
+        this.currentMap = Game.currentMap; // Start with selected map
         let mapKey = this.currentMap;
         let extraSpeed = 0;
         
         if(questId) {
             this.activeQuest = QuestSys.levels.find(q => q.id === questId);
             mapKey = this.activeQuest.map;
+            this.currentMap = mapKey; // Force map
             // Quest 15 boost
             if(questId === 15) extraSpeed = 0.3; 
             // Quest 20 boost
@@ -1560,11 +1746,14 @@ const Game = {
             if(questId === 23) {
                 this.mixedPhase = 0;
                 this.mapTransitionTimer = 0;
-                // Studio is base map key in list but we override ground
             }
             // Quest 25 Setup
             if(questId === 25) {
                 this.tornadoStrength = 0;
+            }
+            // Quest 34 Setup (Darkness starts later)
+            if(questId === 34) {
+                 // Nothing yet, safety zone logic in update
             }
 
             const hudObj = document.getElementById('quest-obj-hud');
@@ -1610,10 +1799,27 @@ const Game = {
             this.scene.add(neptune);
             this.neptune = neptune;
 
+        } else if (mapKey === 'macaroni') {
+            this.scene.background = new THREE.Color(0xFFEEAA); // Soft background
+            this.scene.fog = new THREE.Fog(0xFFEEAA, 30, 100);
+            // Macaroni Pattern handled via CSS class on canvas container
+            document.body.classList.add('macaroni-bg');
+            // Sun Light
+            const sun = new THREE.DirectionalLight(0xFFFFEE, 1.2);
+            sun.position.set(50, 100, 50);
+            this.scene.add(sun);
+            
+            // STRONG YELLOW AMBIENT LIGHT for Macaroni World Tint
+            // This replaces the destructive material modification
+            const amb = new THREE.AmbientLight(0xFFFF00, 0.6); 
+            this.scene.add(amb);
+            
         } else {
             this.scene.background = new THREE.Color(map.bg);
             if(mapKey === 'jungle_dark') {
                  this.scene.fog = new THREE.Fog(0x000000, 5, 25); 
+            } else if (mapKey === 'poseidon') {
+                 this.scene.fog = new THREE.Fog(map.bg, 20, 80);
             } else {
                  this.scene.fog = new THREE.Fog(map.bg, 40, 140); 
             }
@@ -1644,13 +1850,14 @@ const Game = {
             this.water = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), Assets.materials.waterBlue);
             this.water.rotation.x = -Math.PI/2;
             this.water.position.y = -0.55; 
-            if(questId === 23) this.water.visible = false;
+            if(questId === 23 || mapKey === 'macaroni') this.water.visible = false;
             this.scene.add(this.water);
         }
         
         // Player Init
-        const activeColors = Customize.slots[Customize.activeSlot].colors;
+        let activeColors = Customize.slots[Customize.activeSlot].colors;
         const isSpace = mapKey === 'space';
+        
         const pObj = Assets.createPlayer(activeColors, isSpace);
         this.player = {
             mesh: pObj.mesh, limbs: pObj.limbs,
@@ -1662,7 +1869,7 @@ const Game = {
         this.scene.add(this.player.mesh);
         
         // Props Generation
-        if(questId !== 23) { // Q23 starts empty
+        if(questId !== 23 && questId !== 34) { // Q23 starts empty, Q34 starts empty
             const propCount = mapKey === 'studio' ? 25 : mapKey === 'city' ? 60 : mapKey === 'intro' ? 60 : mapKey === 'space' ? 40 : 80;
             this.spawnProps(mapKey, propCount);
         }
@@ -1677,13 +1884,54 @@ const Game = {
                  for(let i=0; i<10; i++) this.spawnEnemy('milo', 50);
             }
             if(this.activeQuest.singleEnemy && this.activeQuest.enemies) {
-                // Spawn one specific large enemy (Quest 18)
-                this.spawnEnemy(this.activeQuest.enemies[0], 0, true);
+                // Spawn one specific large enemy (Quest 18, 32)
+                const type = this.activeQuest.enemies[0];
+                const boss = this.spawnEnemy(type, 0, true);
+                if(questId === 32 && boss) {
+                    boss.mesh.scale.set(7, 7, 7);
+                    boss.speed *= 1.1; // 10% faster
+                }
             }
             // Q25 Pre-spawn
             if(this.activeQuest.id === 25) {
                 this.spawnEnemy('amar', 30);
                 this.spawnEnemy('milo', 30);
+            }
+            // Q28 Special Cam Setup
+            if(questId === 28) {
+                for(let i=0; i<4; i++) this.spawnEnemy('timosha', 30);
+                const bigTim = this.spawnEnemy('timosha', 30);
+                if(bigTim) {
+                    bigTim.mesh.scale.set(2, 2, 2);
+                    bigTim.speed *= 1.05;
+                    this.cameraOverride = bigTim;
+                }
+            }
+            // Q34 Safety Zone Setup
+            if(questId === 34) {
+                 this.safetyZone = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.2, 32), new THREE.MeshBasicMaterial({color: 0xFF0000, transparent:true, opacity:0.5}));
+                 const angle = Math.random() * Math.PI * 2;
+                 const dist = 30 + Math.random() * 30;
+                 this.safetyZone.position.set(Math.cos(angle)*dist, 0.1, Math.sin(angle)*dist);
+                 this.scene.add(this.safetyZone);
+                 this.stats.time = 0; // Timer effectively paused visually until start
+                 document.getElementById('quest-obj-hud').innerText = "ENTER RED ZONE";
+            }
+            // Q37 Rain Setup
+            if(questId === 37) {
+                 const rainGeo = new THREE.BufferGeometry();
+                 const rainCount = 2000;
+                 const pos = new Float32Array(rainCount*3);
+                 for(let i=0;i<rainCount*3;i+=3) {
+                     pos[i] = (Math.random()-0.5)*200;
+                     pos[i+1] = Math.random()*50;
+                     pos[i+2] = (Math.random()-0.5)*200;
+                 }
+                 rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                 const rainMat = new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.2, transparent:true});
+                 this.rainSystem = new THREE.Points(rainGeo, rainMat);
+                 this.scene.add(this.rainSystem);
+                 // Thunder logic in update
             }
         }
         
@@ -1744,10 +1992,17 @@ const Game = {
                      mesh = Assets.createAsteroid(); radius = 1.0; isMoving = true; mesh.position.y = 1;
                  }
             }
+            else if (mapKey === 'macaroni') {
+                if(Math.random() < 0.3) {
+                    mesh = Assets.createPlateWithMacaroni(); radius = 2.0;
+                } else {
+                    mesh = Assets.createGiantFork(); radius = 0.5;
+                }
+            }
             else mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1 + Math.random()), new THREE.MeshToonMaterial({color:0x777777}));
             
             if(!isMoving) {
-                mesh.position.set(x, mapKey!=='forest' && mapKey!=='intro' && mapKey!=='jungle_dark' && mapKey!=='studio' && mapKey!=='desert' && mapKey!=='city' && mapKey!=='bamboo' ? 1 : 0, z);
+                mesh.position.set(x, mapKey!=='forest' && mapKey!=='intro' && mapKey!=='jungle_dark' && mapKey!=='studio' && mapKey!=='desert' && mapKey!=='city' && mapKey!=='bamboo' && mapKey!=='macaroni' ? 1 : 0, z);
                 if(mapKey === 'forest' || mapKey === 'desert' || mapKey === 'intro' || mapKey === 'bamboo') mesh.rotation.y = Math.random() * Math.PI;
             } else { mesh.position.set(x, mesh.position.y, z); }
             
@@ -1759,6 +2014,7 @@ const Game = {
     spawnEnemy(forcedType = null, minDist = 0, isBoss = false) {
         if(this.activeQuest && this.activeQuest.preSpawnMilo && !forcedType) return; 
         if(this.activeQuest && this.activeQuest.singleEnemy && this.enemies.length > 0) return;
+        if(this.activeQuest && this.activeQuest.id === 34 && !this.safetyActive) return; // Q34 waits
 
         const angle = Math.random() * Math.PI * 2; const r = this.zone.radius * 0.9; 
         const x = Math.cos(angle) * r;
@@ -1792,7 +2048,11 @@ const Game = {
 
         const isSpace = (this.activeQuest?.map === 'space' || this.currentMap === 'space');
         let obj, speed;
-        if(type === 'cosmo') { obj = Assets.createCosmo(isSpace); speed = 6.3 + Math.min(this.stats.time/30, 4); }
+        // Q40 Burger Cosmo Logic
+        if(this.activeQuest?.id === 40 && type === 'cosmo') {
+            obj = Assets.createCosmo(isSpace, true); speed = 6.3 + Math.min(this.stats.time/30, 4);
+        }
+        else if(type === 'cosmo') { obj = Assets.createCosmo(isSpace); speed = 6.3 + Math.min(this.stats.time/30, 4); }
         else if(type === 'timosha') { obj = Assets.createTimosha(isSpace); speed = 8.73 + Math.min(this.stats.time/30, 6); }
         else if(type === 'milo') { obj = Assets.createMilo(isSpace); speed = 9.5 + Math.min(this.stats.time/30, 6); }
         else { obj = Assets.createAmar(isSpace); speed = 9.0 + Math.min(this.stats.time/30, 6); }
@@ -1806,14 +2066,21 @@ const Game = {
         if(this.activeQuest && this.activeQuest.id === 20) {
             speed *= 1.3;
         }
+        
+        // NOTE: Previous Macaroni Tint logic removed to fix "yellow everywhere" bug.
+        // Tint is now handled non-destructively by the scene ambient light in start().
 
         obj.mesh.position.set(x, 0, z); this.scene.add(obj.mesh);
-        this.enemies.push({
+        
+        const enemyData = {
             mesh: obj.mesh, head: obj.head, limbs: obj.limbs, wings: obj.wings,
             vel: new THREE.Vector3(), speed: speed, type: type, animOffset: Math.random() * 10
-        });
+        };
+        this.enemies.push(enemyData);
         if(type === 'timosha') AudioSys.sfx.parrot();
         if(type === 'amar' || type === 'milo') AudioSys.sfx.bark();
+        
+        return enemyData;
     },
 
     spawnCoin() {
@@ -1931,83 +2198,100 @@ const Game = {
         }
         
         if(this.state === 'menu' || this.state === 'questMenu') {
+            if(this.state === 'menu' && this.menuAnim) {
+                this.menuAnim.time += dt * 10;
+                const t = this.menuAnim.time;
 
-    if(this.state === 'menu' && this.menuAnim) {
-
-        this.menuAnim.time += dt * 10;
-        const t = this.menuAnim.time;
-
-        if(this.menuAnim.type === 'default' && this.menuAnim.player) {
-
-            const pLimbs = this.menuAnim.player.limbs;
-            pLimbs.legL.rotation.x = Math.sin(t) * 0.8;
-            pLimbs.legR.rotation.x = Math.sin(t + Math.PI) * 0.8;
-            pLimbs.armL.rotation.x = Math.sin(t + Math.PI) * 0.8;
-            pLimbs.armR.rotation.x = Math.sin(t) * 0.8;
-            this.menuAnim.player.mesh.position.y = Math.abs(Math.sin(t)) * 0.1;
-
-        }
-        else if (this.menuAnim.type === 'timosha') {
-
-            this.menuAnim.obj.mesh.position.x = Math.sin(t * 0.2) * 4;
-            this.menuAnim.obj.mesh.position.z = Math.cos(t * 0.2) * 4;
-            this.menuAnim.obj.mesh.position.y = 1.2;
-
-            this.menuAnim.obj.mesh.rotation.y += dt * 3;
-
-            if(this.menuAnim.obj.wings) {
-                this.menuAnim.obj.wings[0].rotation.z = Math.sin(t * 2) * 0.5 + 0.5;
-                this.menuAnim.obj.wings[1].rotation.z = -Math.sin(t * 2) * 0.5 - 0.5;
-            }
-
-        }
-        else if (this.menuAnim.type === 'tornado') {
-
-            if(this.menuAnim.obj) {
-                this.menuAnim.obj.rotation.y += dt * 5;
-
-                if(this.menuAnim.obj.userData.swirls) {
-                    this.menuAnim.obj.userData.swirls.rotation.y -= dt * 2;
+                if(this.menuAnim.type === 'default' && this.menuAnim.player) {
+                    const pLimbs = this.menuAnim.player.limbs;
+                    pLimbs.legL.rotation.x = Math.sin(t) * 0.8;
+                    pLimbs.legR.rotation.x = Math.sin(t + Math.PI) * 0.8;
+                    pLimbs.armL.rotation.x = Math.sin(t + Math.PI) * 0.8;
+                    pLimbs.armR.rotation.x = Math.sin(t) * 0.8;
+                    this.menuAnim.player.mesh.position.y = Math.abs(Math.sin(t)) * 0.1;
+                }
+                else if (this.menuAnim.type === 'timosha') {
+                    this.menuAnim.obj.mesh.position.x = Math.sin(t * 0.2) * 4;
+                    this.menuAnim.obj.mesh.position.z = Math.cos(t * 0.2) * 4;
+                    this.menuAnim.obj.mesh.position.y = 1.2;
+                    this.menuAnim.obj.mesh.rotation.y += dt * 3;
+                    if(this.menuAnim.obj.wings) {
+                        this.menuAnim.obj.wings[0].rotation.z = Math.sin(t * 2) * 0.5 + 0.5;
+                        this.menuAnim.obj.wings[1].rotation.z = -Math.sin(t * 2) * 0.5 - 0.5;
+                    }
+                }
+                else if (this.menuAnim.type === 'tornado') {
+                    if(this.menuAnim.obj) {
+                        this.menuAnim.obj.rotation.y += dt * 5;
+                        if(this.menuAnim.obj.userData.swirls) {
+                            this.menuAnim.obj.userData.swirls.rotation.y -= dt * 2;
+                        }
+                    }
+                }
+                else if (this.menuAnim.type === 'apocalypse') {
+                    // Update meteors for Apocalypse BG
+                    // Spawn new meteor occasionally
+                    if(Math.random() < 0.1) {
+                         const met = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({color: 0xFF4500}));
+                         met.position.set((Math.random()-0.5)*20, 10 + Math.random()*5, -10 + (Math.random()-0.5)*10);
+                         this.scene.add(met);
+                         this.meteors.push({mesh: met, vel: new THREE.Vector3(-2, -4, 0)});
+                    }
+                    // Move meteors
+                    for(let i=this.meteors.length-1; i>=0; i--) {
+                        const m = this.meteors[i];
+                        m.mesh.position.add(m.vel.clone().multiplyScalar(dt));
+                        if(m.mesh.position.y < -5) {
+                            this.scene.remove(m.mesh);
+                            this.meteors.splice(i, 1);
+                        }
+                    }
                 }
             }
-
+            return;
         }
 
-    }
+        if(this.state !== 'play') return;
 
-    return;
-}
+        // Q34 Safety Zone Wait Logic
+        if(this.activeQuest && this.activeQuest.id === 34 && !this.safetyActive) {
+            // Check if player entered red zone
+            if(this.safetyZone && this.player.pos.distanceTo(this.safetyZone.position) < 5) {
+                this.safetyActive = true;
+                this.scene.remove(this.safetyZone);
+                this.safetyZone = null;
+                // Switch to dark mode
+                this.scene.background = new THREE.Color(0x000000);
+                this.scene.fog = new THREE.Fog(0x000000, 5, 25);
+                document.getElementById('quest-obj-hud').innerText = `SURVIVE ${this.activeQuest.dur}s`;
+            } else {
+                return; // Do not process time or enemies yet
+            }
+        }
 
+        this.stats.time += dt;
 
-/* 👇 ВОТ ЭТО ОБЯЗАТЕЛЬНО ДОЛЖНО БЫТЬ НИЖЕ */
+        const mins = Math.floor(this.stats.time / 60).toString().padStart(2, '0');
+        const secs = Math.floor(this.stats.time % 60).toString().padStart(2, '0');
 
-if(this.state !== 'play') return;
-
-this.stats.time += dt;
-
-const mins = Math.floor(this.stats.time / 60).toString().padStart(2, '0');
-const secs = Math.floor(this.stats.time % 60).toString().padStart(2, '0');
-
-document.getElementById('hud-center').innerText = `${mins}:${secs}`;
+        document.getElementById('hud-center').innerText = `${mins}:${secs}`;
         
         // --- QUEST SPECIFIC UPDATES ---
         
-        // Quest 14: Fracture & Quest 19: Camera Angle (Random Teleport)
+        // Q14 & Q19
         if(this.activeQuest && (this.activeQuest.id === 14 || this.activeQuest.id === 19)) {
             this.teleportTimer -= dt;
             if(this.teleportTimer <= 0) {
-                 this.teleportTimer = 30; // Reset
-                 // Teleport player
+                 this.teleportTimer = 30; 
                  const angle = Math.random() * Math.PI * 2;
                  const r = Math.random() * (this.zone.radius - 5);
                  this.player.pos.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
-                 // Flash Effect
                  document.body.style.background = 'white';
                  setTimeout(()=>document.body.style.background = 'var(--bg-dark)', 100);
             }
         }
 
-        // Quest 16: Antigravity
+        // Q16 Antigravity
         if(this.activeQuest && this.activeQuest.id === 16) {
             this.antigravity.timer += dt;
             if(!this.antigravity.active && this.antigravity.timer > this.antigravity.nextTime) {
@@ -2029,7 +2313,7 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
             }
         }
 
-        // Quest 17: Pressure (Fog)
+        // Q17 Pressure
         if(this.activeQuest && this.activeQuest.id === 17) {
             this.fogTimer += dt;
             const cycle = 33; 
@@ -2045,56 +2329,41 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
             }
         }
 
-        // Quest 21: Climate (Map Switch)
+        // Q21 Climate
         if(this.activeQuest && this.activeQuest.id === 21) {
             this.mapTransitionTimer += dt;
             if(this.mapTransitionTimer >= 30) {
                 this.mapTransitionTimer = 0;
                 this.climatePhase = (this.climatePhase + 1) % 4;
-                const seq = ['forest', 'ice', 'desert', 'intro']; // Bamboo uses intro
+                const seq = ['forest', 'ice', 'desert', 'intro'];
                 const nextMap = seq[this.climatePhase];
                 const mapData = this.maps[nextMap];
-                
-                // Lerping color manually or instant switch? User said smooth transition.
-                // Doing instant color switch with fade effect
                 this.ground.material.color.setHex(mapData.color);
                 this.scene.background.setHex(mapData.bg);
                 this.scene.fog.color.setHex(mapData.bg);
-                
-                // Re-populate props? No, usually climate changes but terrain stays or props change? 
-                // "The map changes". Let's assume ground color + atmosphere changes. Props might look weird but acceptable.
-                // To be smooth, we could lerp, but instant with a flash is safer for performance.
             }
         }
 
-        // Quest 22: Orbital Drift
+        // Q22 Orbital Drift
         if(this.activeQuest && this.activeQuest.id === 22) {
             if(this.stats.time > 50) {
                 this.driftActive = true;
                 const driftSpeed = 0.3 * dt;
-                // Apply drift to player
                 const p = this.player;
                 const px = p.pos.x; const pz = p.pos.z;
-                p.pos.x += -pz * driftSpeed; // Tangential
-                p.pos.z += px * driftSpeed;
-                
-                // Drift enemies
+                p.pos.x += -pz * driftSpeed; p.pos.z += px * driftSpeed;
                 this.enemies.forEach(e => {
                     const ex = e.mesh.position.x; const ez = e.mesh.position.z;
-                    e.mesh.position.x += -ez * driftSpeed;
-                    e.mesh.position.z += ex * driftSpeed;
+                    e.mesh.position.x += -ez * driftSpeed; e.mesh.position.z += ex * driftSpeed;
                 });
-                
-                // Drift items
                 this.coins.forEach(c => {
                     const cx = c.mesh.position.x; const cz = c.mesh.position.z;
-                    c.mesh.position.x += -cz * driftSpeed;
-                    c.mesh.position.z += cx * driftSpeed;
+                    c.mesh.position.x += -cz * driftSpeed; c.mesh.position.z += cx * driftSpeed;
                 });
             }
         }
 
-        // Quest 23: Eternal Mixed
+        // Q23 Mixed
         if(this.activeQuest && this.activeQuest.id === 23) {
             this.mapTransitionTimer += dt;
             if(this.mapTransitionTimer >= 30) {
@@ -2102,32 +2371,215 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                 this.mixedPhase = (this.mixedPhase + 1) % 4;
                 const seq = ['forest', 'city', 'bamboo', 'desert'];
                 const nextKey = seq[this.mixedPhase];
-                this.spawnProps(nextKey, 20); // Replace props
+                this.spawnProps(nextKey, 20);
             }
         }
 
-        // Quest 24: Wind Tunnel
+        // Q24 Wind
         if(this.activeQuest && this.activeQuest.id === 24) {
             if(!this.windActive) {
                 this.windTimer -= dt;
                 if(this.windTimer <= 0) {
                     this.windActive = true;
-                    this.windTimer = 2.0; // Duration
+                    this.windTimer = 2.0; 
                     const angle = Math.random() * Math.PI * 2;
                     this.windDir.set(Math.cos(angle), 0, Math.sin(angle));
                 }
             } else {
                 this.windTimer -= dt;
-                // Apply wind force
-                this.player.vel.add(this.windDir.clone().multiplyScalar(40 * dt)); // Strong wind
+                this.player.vel.add(this.windDir.clone().multiplyScalar(40 * dt));
                 if(this.windTimer <= 0) {
                     this.windActive = false;
-                    this.windTimer = 8 + Math.random() * 10; // 8-18s
+                    this.windTimer = 8 + Math.random() * 10;
+                }
+            }
+        }
+        
+        // Q26 Unpleasant Mail (Falling Enemies)
+        if(this.activeQuest && this.activeQuest.id === 26) {
+            this.fallTimer -= dt;
+            if(this.fallTimer <= 0) {
+                this.fallTimer = 10;
+                // Spawn falling
+                const count = 3 + Math.floor(this.stats.time / 30);
+                for(let i=0; i<count; i++) {
+                    const e = this.spawnEnemy();
+                    if(e) e.mesh.position.y = 20;
                 }
             }
         }
 
-        // Quest 25: Apocalypse (Tornado)
+        // Q27 Mixed Controls
+        if(this.activeQuest && this.activeQuest.id === 27) {
+            this.controlDistortionTimer -= dt;
+            if(this.controlDistortionTimer <= 0) {
+                if(!this.controlDistortionActive) {
+                    this.controlDistortionActive = true;
+                    this.controlDistortionTimer = 5; // 5s distortion
+                    // Feedback
+                    document.getElementById('hud-center').style.color = '#FF0000';
+                } else {
+                    this.controlDistortionActive = false;
+                    this.controlDistortionTimer = 20; // 20s normal
+                    document.getElementById('hud-center').style.color = 'white';
+                }
+            }
+        }
+
+        // Q29 Flee
+        if(this.activeQuest && this.activeQuest.id === 29) {
+            this.fleeTimer -= dt;
+            if(this.fleeTimer <= 0) {
+                 if(!this.fleeActive) {
+                     this.fleeActive = true;
+                     this.fleeTimer = 7;
+                 } else {
+                     this.fleeActive = false;
+                     this.fleeTimer = 30;
+                 }
+            }
+        }
+
+        // Q30 Mirage
+        if(this.activeQuest && this.activeQuest.id === 30) {
+            this.heatDistortion += (0.007 * dt); // +0.7% per second roughly
+            // Apply camera shake/distortion
+            this.camera.rotation.z = (Math.random() - 0.5) * this.heatDistortion * 0.1;
+        }
+
+        // Q31 Outside the Air
+        if(this.activeQuest && this.activeQuest.id === 31) {
+            this.gravityTimer -= dt;
+            if(this.gravityTimer <= 0) {
+                if(!this.gravityOff) {
+                    this.gravityOff = true;
+                    this.gravityTimer = 10; // float for 10
+                } else {
+                    this.gravityOff = false;
+                    this.gravityTimer = 30;
+                    // Slam down
+                    this.player.pos.y = 0;
+                    this.enemies.forEach(e => e.mesh.position.y = 0);
+                    const shake = 20;
+                    document.body.style.transform = `translate(0px, 10px)`;
+                    setTimeout(()=>document.body.style.transform='none', 200);
+                }
+            }
+            if(this.gravityOff) {
+                // Float up
+                if(this.player.pos.y < 5) this.player.pos.y += dt * 2;
+                this.enemies.forEach(e => { if(e.mesh.position.y < 5) e.mesh.position.y += dt * 2; });
+            }
+
+            this.smallTornadoTimer -= dt;
+            if(this.smallTornadoTimer <= 0) {
+                this.smallTornadoTimer = 15 + Math.random() * 15;
+                const tornado = Assets.createTornado();
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 20 + Math.random() * 20;
+                tornado.position.set(this.player.pos.x + Math.cos(angle)*dist, 0, this.player.pos.z + Math.sin(angle)*dist);
+                tornado.scale.set(0.5, 0.5, 0.5);
+                this.scene.add(tornado);
+                setTimeout(() => this.scene.remove(tornado), 5000);
+            }
+        }
+        
+        // Q33 Time Echo (Ghost Trail)
+        if(this.activeQuest && this.activeQuest.id === 33) {
+            this.ghostTimer -= dt;
+            if(this.ghostTimer <= 0) {
+                this.ghostTimer = 0.2;
+                const ghost = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.5}));
+                ghost.position.copy(this.player.pos);
+                ghost.position.y = 1.4;
+                ghost.rotation.y = this.player.mesh.rotation.y;
+                this.scene.add(ghost);
+                // Animate ghost fade
+                const fade = () => {
+                    ghost.material.opacity -= 0.02;
+                    if(ghost.material.opacity <= 0) this.scene.remove(ghost);
+                    else requestAnimationFrame(fade);
+                };
+                fade();
+            }
+        }
+
+        // Q35 Predator
+        if(this.activeQuest && this.activeQuest.id === 35) {
+            if(this.stats.time > 50 && !this.giantAmarSpawned) {
+                this.giantAmarSpawned = true;
+                const boss = this.spawnEnemy('amar', 0, true);
+                if(boss) boss.mesh.scale.set(3, 3, 3);
+            }
+            if(this.stats.time > 100 && !this.giantCosmoSpawned) {
+                this.giantCosmoSpawned = true;
+                const boss = this.spawnEnemy('cosmo', 0, true);
+                if(boss) boss.mesh.scale.set(5, 5, 5);
+            }
+        }
+
+        // Q36 Probably Gravity
+        if(this.activeQuest && this.activeQuest.id === 36) {
+             this.saturnPullStrength = this.stats.time * 0.1;
+             // Pull towards saturn (-X direction based on map setup)
+             this.player.vel.x -= this.saturnPullStrength * dt;
+             this.enemies.forEach(e => e.mesh.position.x -= this.saturnPullStrength * dt * 0.5);
+             
+             if(this.stats.time > 60) {
+                 this.player.pos.y += dt;
+                 this.enemies.forEach(e => e.mesh.position.y += dt);
+             }
+        }
+        
+        // Q37 Rains
+        if(this.activeQuest && this.activeQuest.id === 37) {
+            if(this.rainSystem) {
+                const positions = this.rainSystem.geometry.attributes.position.array;
+                for(let i=1; i<positions.length; i+=3) {
+                    positions[i] -= 2;
+                    if(positions[i] < 0) positions[i] = 50;
+                }
+                this.rainSystem.geometry.attributes.position.needsUpdate = true;
+            }
+            // Grow bamboo props
+            this.props.forEach(p => {
+                 p.mesh.scale.y += dt * 0.05;
+            });
+            // Thunder
+            if(Math.random() < 0.005) {
+                document.body.style.background = 'white';
+                setTimeout(()=>document.body.style.background='var(--bg-dark)', 50);
+            }
+        }
+
+        // Q38 Earthquake
+        if(this.activeQuest && this.activeQuest.id === 38) {
+            this.earthquakeStrength = (this.stats.time / 149) * 2;
+            this.camera.position.x += (Math.random()-0.5) * this.earthquakeStrength;
+            this.camera.position.z += (Math.random()-0.5) * this.earthquakeStrength;
+            
+            if(this.stats.time > 100) {
+                this.props.forEach(p => {
+                    if(Math.random() < 0.1) {
+                         p.mesh.position.x += (Math.random()-0.5) * 0.5;
+                         p.mesh.rotation.z += (Math.random()-0.5) * 0.1;
+                    }
+                });
+            }
+        }
+
+        // Q39 Poseidon
+        if(this.activeQuest && this.activeQuest.id === 39) {
+            this.platformRotation += dt * 0.5;
+            this.ground.rotation.y = this.platformRotation;
+            // Player gets rotated? No, platform slips under feet usually, but lets simulate rotation drag
+            const angle = dt * 0.5;
+            const x = this.player.pos.x; const z = this.player.pos.z;
+            this.player.pos.x = x * Math.cos(angle) - z * Math.sin(angle);
+            this.player.pos.z = x * Math.sin(angle) + z * Math.cos(angle);
+        }
+
+        // Q25: Apocalypse (Tornado) Logic (Existing)
         if(this.activeQuest && this.activeQuest.id === 25) {
             if(this.stats.time > 10 && !this.tornado) {
                 this.tornado = Assets.createTornado();
@@ -2142,7 +2594,7 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                 if(this.tornado.userData.swirls) this.tornado.userData.swirls.rotation.y -= dt * 3;
 
                 // Physics
-                const pullStrength = 5 + age * 0.5; // Increases over time
+                const pullStrength = 5 + age * 0.5; 
                 const center = new THREE.Vector3(0,0,0);
                 
                 // Pull Player
@@ -2150,17 +2602,15 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                 this.player.vel.add(pDir.multiplyScalar(pullStrength * dt));
                 
                 // Spin/Lift after 90s
-                if(age > 80) { // Start lifting phase
+                if(age > 80) { 
                     const lift = (age - 80) * 0.1;
                     if(this.player.pos.y < lift) this.player.pos.y += dt;
-                    // Spin around
                     const px = this.player.pos.x; const pz = this.player.pos.z;
                     const spinSpeed = 1.0 * dt;
                     this.player.pos.x += -pz * spinSpeed;
                     this.player.pos.z += px * spinSpeed;
                 }
                 
-                // Pull Enemies/Props
                 this.enemies.forEach(e => {
                     const dir = center.clone().sub(e.mesh.position).normalize();
                     e.mesh.position.add(dir.multiplyScalar(pullStrength * dt * 0.5));
@@ -2174,7 +2624,7 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                 
                 this.props.forEach(p => {
                     const dir = center.clone().sub(p.mesh.position).normalize();
-                    p.mesh.position.add(dir.multiplyScalar(pullStrength * dt * 0.3)); // Props lighter? or heavier?
+                    p.mesh.position.add(dir.multiplyScalar(pullStrength * dt * 0.3));
                     if(age > 80) {
                         p.mesh.position.y += dt * 0.5;
                         const px = p.mesh.position.x; const pz = p.mesh.position.z;
@@ -2182,6 +2632,29 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                         p.mesh.position.z += px * dt;
                     }
                 });
+            }
+        }
+        
+        // MACARONI DUST (New World)
+        if(this.currentMap === 'macaroni' && this.player.vel.length() > 0.1) {
+            if(Math.random() < 0.3) {
+                 const dust = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({color: 0xFFD54F, transparent:true}));
+                 dust.position.copy(this.player.pos);
+                 dust.position.y = 0.2;
+                 dust.rotation.set(Math.random(), Math.random(), Math.random());
+                 this.scene.add(dust);
+                 this.macaroniDust.push({mesh:dust, life:1.0});
+            }
+        }
+        // Update dust
+        for(let i=this.macaroniDust.length-1; i>=0; i--) {
+            const d = this.macaroniDust[i];
+            d.life -= dt;
+            d.mesh.position.y += dt;
+            d.mesh.material.opacity = d.life;
+            if(d.life <= 0) {
+                this.scene.remove(d.mesh);
+                this.macaroniDust.splice(i, 1);
             }
         }
 
@@ -2201,6 +2674,8 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                  // Time based
                  if(this.stats.time >= this.activeQuest.dur) won = true;
                  document.getElementById('quest-obj-hud').innerText = `${Math.floor(this.stats.time)} / ${this.activeQuest.dur}s`;
+            } else if (this.activeQuest.obj === 'survival') {
+                 document.getElementById('quest-obj-hud').innerText = "SURVIVE (" + Math.floor(this.stats.time) + "s)";
             }
             
             if(won) {
@@ -2231,8 +2706,10 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
 
         // Spawn Logic
         let spawnRate = 10; // Every 10s default
-        // Quest 12: Overload (Spawn twice as fast)
+        // Quest 12: Overload
         if(this.activeQuest && this.activeQuest.id === 12) spawnRate = 5;
+        // Q33 Time Echo (Faster Timosha)
+        if(this.activeQuest && this.activeQuest.id === 33) spawnRate = 8.5; // 15% faster spawn rate roughly
         
         const desiredEnemies = Math.floor(this.stats.time / spawnRate) + 1;
         if(this.enemies.length < desiredEnemies && this.stats.time > 3) this.spawnEnemy();
@@ -2246,6 +2723,12 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
             if(this.keys.a) moveX -= 1; if(this.keys.d) moveX += 1;
             if(moveX || moveY) { const len = Math.hypot(moveX, moveY); moveX /= len; moveY /= len; }
         }
+        
+        // Q27 Distortion
+        if(this.controlDistortionActive) {
+            moveX *= -1; moveY *= -1; // Basic invert/mirror
+        }
+
         if(moveX || moveY) {
             // Antigravity check: move in air freely
             p.vel.x += moveX * p.speed * 4 * dt; 
@@ -2260,7 +2743,6 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
         const frictionFactor = Math.pow(map.friction, dt * 60);
         p.vel.multiplyScalar(frictionFactor);
         
-        // SPEED FIX: Clamp velocity to prevent runaway acceleration on low friction maps
         if(p.vel.length() > p.speed * 1.5) p.vel.setLength(p.speed * 1.5);
         
         // Island Bound Collision
@@ -2296,8 +2778,21 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
 
         for(let i=this.enemies.length-1; i>=0; i--) {
             const e = this.enemies[i];
-            const dir = p.pos.clone().sub(e.mesh.position).normalize();
+            
+            // Flee Logic (Q29)
+            let dir;
+            if(this.fleeActive) {
+                dir = e.mesh.position.clone().sub(p.pos).normalize(); // Run away
+            } else {
+                dir = p.pos.clone().sub(e.mesh.position).normalize();
+            }
             dir.y = 0; dir.normalize();
+
+            // FALLING LOGIC Q26
+            if(this.activeQuest && this.activeQuest.id === 26 && e.mesh.position.y > 0) {
+                e.mesh.position.y -= dt * 5;
+                if(e.mesh.position.y < 0) e.mesh.position.y = 0;
+            }
 
             this.enemies.forEach(other => {
                 if(e === other) return;
@@ -2306,6 +2801,8 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
             });
             e.mesh.position.add(dir.multiplyScalar(e.speed * dt));
             e.mesh.lookAt(new THREE.Vector3(p.pos.x, e.mesh.position.y, p.pos.z));
+            if(this.fleeActive) e.mesh.rotation.y += Math.PI; // Face away if fleeing
+
             const localTime = this.stats.time + e.animOffset;
             
             if(e.type === 'cosmo') {
@@ -2316,12 +2813,14 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                     e.limbs[2].rotation.x = Math.sin(runSpeed + Math.PI) * 0.8; e.limbs[3].rotation.x = Math.sin(runSpeed) * 0.8;
                 }
             } else if(e.type === 'timosha') {
-                e.mesh.position.y = 1.5 + Math.sin(localTime * 10) * 0.3; 
+                // If not falling in Q26
+                if(!(this.activeQuest && this.activeQuest.id === 26 && e.mesh.position.y > 0.5)) {
+                    e.mesh.position.y = 1.5 + Math.sin(localTime * 10) * 0.3; 
+                }
                 if(e.wings) { e.wings[0].rotation.z = Math.sin(localTime * 25) * 0.5 + 0.5; e.wings[1].rotation.z = -Math.sin(localTime * 25) * 0.5 - 0.5; }
                 if(Math.hypot(p.pos.x - e.mesh.position.x, p.pos.z - e.mesh.position.z) < 4.0) e.mesh.position.add(dir.multiplyScalar(dt * 3)); 
             } else {
-                const baseH = (e.type === 'milo' && this.activeQuest && this.activeQuest.id === 18) ? 0 : 0;
-                e.mesh.position.y = baseH + Math.abs(Math.sin(localTime * 10)) * 0.2;
+                e.mesh.position.y = Math.abs(Math.sin(localTime * 10)) * 0.2;
                 if(e.limbs) {
                     const legSpeed = localTime * 20;
                     e.limbs[0].rotation.x = Math.sin(legSpeed) * 0.5; e.limbs[1].rotation.x = Math.sin(legSpeed + Math.PI) * 0.5;
@@ -2329,7 +2828,7 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                 }
             }
             // Check collision
-            if(Math.hypot(p.pos.x - e.mesh.position.x, p.pos.z - e.mesh.position.z) < (this.activeQuest?.id === 18 ? 3.0 : 1.0)) { 
+            if(Math.hypot(p.pos.x - e.mesh.position.x, p.pos.z - e.mesh.position.z) < (this.activeQuest?.id === 18 || this.activeQuest?.id === 32 ? 3.0 : 1.0)) { 
                 if (p.pos.y < 2) { 
                     this.takeDamage(); 
                     e.mesh.position.sub(dir.multiplyScalar(3)); 
@@ -2356,13 +2855,20 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
         }
 
         // Camera Logic
-        // Quest 19: Camera Angle
+        // Q19 & Q28 Camera
         if(this.activeQuest && this.activeQuest.id === 19 && this.stats.time > 75) {
             const camDist = 10;
             const camHeight = 8;
             this.camera.position.x += (p.pos.x - this.camera.position.x) * 5 * dt;
             this.camera.position.z += (p.pos.z + camDist - this.camera.position.z) * 5 * dt;
             this.camera.position.y += (camHeight - this.camera.position.y) * 5 * dt;
+            this.camera.lookAt(p.pos);
+        } else if (this.activeQuest && this.activeQuest.id === 28 && this.cameraOverride) {
+            // View from Big Timosha's eyes
+            const ePos = this.cameraOverride.mesh.position;
+            this.camera.position.copy(ePos);
+            this.camera.position.y += 3; // Eye level
+            // Look direction? Maybe look at player?
             this.camera.lookAt(p.pos);
         } else {
             // Standard Camera
@@ -2402,24 +2908,21 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
 
     gameOver(questWin = false) {
         this.state = 'gameover'; UI.showHUD(false); UI.setScreen('gameover');
-
-if(this.activeQuest && this.activeQuest.id === 10){
-    if(!Game.stats.questCompleted) Game.stats.questCompleted = {};
-    Game.stats.questCompleted[10] = true;
-
-    if(this.stats.questLevel === 10){
-        this.stats.questLevel = 11;
-    }
-
-    Game.save();
-}
-        
-        let finalCoins = this.runStats.coins;
-        let finalGems = this.runStats.gems;
         
         // Remove Dialogue Box if exists (to be re-added only if win)
         const oldBox = document.getElementById('end-dialogue');
         if(oldBox) oldBox.style.display = 'none';
+        
+        // Restore document background from Q25/Q34/Q37 flashes
+        document.body.style.background = 'var(--bg-dark)';
+        document.body.classList.remove('macaroni-bg');
+
+        if(this.activeQuest && (this.activeQuest.id === 10 || this.activeQuest.id === 25)) {
+            // Mark as done even if survival ended (if lasted long enough to "complete" initial tier, dealt with below)
+        }
+        
+        let finalCoins = this.runStats.coins;
+        let finalGems = this.runStats.gems;
 
         // QUEST REWARDS
         if(this.activeQuest) {
@@ -2434,10 +2937,7 @@ if(this.activeQuest && this.activeQuest.id === 10){
                 if(!Game.stats.questCompleted[this.activeQuest.id]) {
                     // Specific Rewards
                     if(this.activeQuest.id === 15) {
-                        finalCoins += 5; // +5 standard
-                        // Plus special bonus
-                        finalCoins += 5;
-                        finalGems += 5;
+                        finalCoins += 10; finalGems += 5;
                     } else if (this.activeQuest.id >= 16) {
                         // New level rewards
                         finalCoins += 8;
@@ -2455,13 +2955,24 @@ if(this.activeQuest && this.activeQuest.id === 10){
                 if(this.activeQuest.id === this.stats.questLevel) {
                     this.stats.questLevel++;
                 }
-            } else if (this.activeQuest.obj === 'survival' && (this.activeQuest.id === 10 || this.activeQuest.id === 25)) {
-                 // Level 10 & 25 Logic (Survival Rewards)
+            } else if (this.activeQuest.obj === 'survival' && (this.activeQuest.id === 10 || this.activeQuest.id === 25 || this.activeQuest.id === 40)) {
+                 // Level 10, 25 & 40 Logic (Survival Rewards)
                  const t = this.stats.time;
                  let qCoins = 0; let qGems = 0;
+                 let successMsg = "SURVIVED";
                  
-                 // Reuse tier logic roughly or define specific per quest? User provided specific tiers for Q25
-                 if (this.activeQuest.id === 25) {
+                 // Q40 Macaroni Logic
+                 if (this.activeQuest.id === 40) {
+                     if(t < 90) qCoins = 10;
+                     else if(t < 120) qCoins = 15;
+                     else if(t < 150) qCoins = 25;
+                     else if(t < 180) qCoins = 30;
+                     else if(t < 240) qCoins = 40;
+                     else if(t < 300) qCoins = 50;
+                     else if(t < 360) { qCoins = 50; qGems = 5; }
+                     else { qCoins = 50; qGems = 10; }
+                 }
+                 else if (this.activeQuest.id === 25) {
                      if(t < 60) qCoins = 5;
                      else if(t < 90) qCoins = 10;
                      else if(t < 120) { qCoins = 10; qGems = 3; }
@@ -2485,13 +2996,13 @@ if(this.activeQuest && this.activeQuest.id === 10){
                  finalCoins += qCoins;
                  finalGems += qGems;
                  
-                 document.getElementById('end-title').innerText = "QUEST DONE";
+                 document.getElementById('end-title').innerText = successMsg;
                  document.getElementById('end-title').style.color = "#00FF00";
                  UI.showQuestDialog(this.activeQuest.msg);
                  AudioSys.sfx.quest_win();
 
-                 // UNLOCK NEXT IF SURVIVED AT LEAST 60s
-                 if(t >= 60) {
+                 // UNLOCK NEXT IF SURVIVED AT LEAST 60s (Not for Q40)
+                 if(t >= 60 && this.activeQuest.id !== 40) {
                      if(!Game.stats.questCompleted[this.activeQuest.id]) Game.stats.questCompleted[this.activeQuest.id] = true;
                      if(this.stats.questLevel === this.activeQuest.id) this.stats.questLevel++;
                  }
@@ -2516,7 +3027,7 @@ if(this.activeQuest && this.activeQuest.id === 10){
         }
         
         const oldLevel = this.getLevel(this.stats.xp);
-        this.stats.xp = Math.min(200000, this.stats.xp + xpEarned); 
+        this.stats.xp = Math.min(500000, this.stats.xp + xpEarned); 
         const newLevel = this.getLevel(this.stats.xp);
         
         // Best Run Check
@@ -2551,6 +3062,7 @@ if(this.activeQuest && this.activeQuest.id === 10){
                     else if(oldLevel < 55 && newLevel >= 55) unlockText = "UNLOCKED: STUDIO";
                     else if(oldLevel < 80 && newLevel >= 80) unlockText = "UNLOCKED: CITY";
                     else if(oldLevel < 130 && newLevel >= 130) unlockText = "UNLOCKED: SPACE";
+                    else if(oldLevel < 190 && newLevel >= 190) unlockText = "UNLOCKED: MACARONI WORLD";
                     
                     if(unlockText) {
                         const msg = document.getElementById('unlock-msg');
@@ -2635,8 +3147,6 @@ if(this.activeQuest && this.activeQuest.id === 10){
                 const dx = e.clientX - lastX;
                 if(Game.state === 'textures') Game.onTextureDrag(dx);
                 if(Game.state === 'questMenu') {
-                    // Find the Amar object in the quest scene and rotate it
-                    // The main Amar in quest scene is added directly to scene
                     const amar = Game.scene.children.find(c => c.children && c.children.length > 0 && c.position.y === -1.2);
                     if(amar) amar.rotation.y += dx * 0.01;
                 }
@@ -2648,8 +3158,8 @@ if(this.activeQuest && this.activeQuest.id === 10){
                 const dx = e.touches[0].clientX - lastX;
                 if(Game.state === 'textures') Game.onTextureDrag(dx);
                 if(Game.state === 'questMenu') {
-                     const amar = Game.scene.children.find(c => c.children && c.children.length > 0 && c.position.y === -1.2);
-                     if(amar) amar.rotation.y += dx * 0.01;
+                      const amar = Game.scene.children.find(c => c.children && c.children.length > 0 && c.position.y === -1.2);
+                      if(amar) amar.rotation.y += dx * 0.01;
                 }
                 lastX = e.touches[0].clientX; 
             } 
@@ -2687,16 +3197,19 @@ const UI = {
         mapCont.innerHTML = '';
         const currentLvl = Game.getLevel(Game.stats.xp);
         
-        Object.keys(Game.maps).forEach(k => {
+        // Ensure standard map order
+        const mapKeys = ['forest', 'desert', 'ice', 'studio', 'city', 'space', 'macaroni'];
+
+        mapKeys.forEach(k => {
             const m = Game.maps[k];
-            if(k === 'intro' || k === 'jungle_dark') return; // Do not show secret maps
+            if(!m) return;
             
             const locked = currentLvl < m.levelReq;
             
             const div = document.createElement('div');
             div.className = `card ${k===Game.currentMap?'selected':''} ${locked?'locked':''}`;
             div.innerHTML = `
-                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':k=='studio'?'🏢':k=='city'?'🏙️':'🪐'}</div>
+                <div class="card-icon">${k=='forest'?'🌲':k=='desert'?'🌵':k=='ice'?'❄️':k=='studio'?'🏢':k=='city'?'🏙️':k=='space'?'🪐':'🍝'}</div>
                 <div>${m.name}</div>
                 <div class="lock-icon">🔒</div>
                 ${locked ? `<div class="lvl-req">LVL ${m.levelReq}</div>` : ''}
@@ -2777,7 +3290,7 @@ const UI = {
             `;
             if(!locked && !completed) {
                 div.onclick = () => {
-                       Game.start(q.id);
+                        Game.start(q.id);
                 };
             }
             grid.appendChild(div);
@@ -2920,4 +3433,3 @@ window.onload = () => Game.init();
 </script>
 </body>
 </html>
-
