@@ -1758,10 +1758,11 @@ const Game = {
             }
 
             const hudObj = document.getElementById('quest-obj-hud');
-            if(this.activeQuest.obj === 'coins') hudObj.innerText = `0 / ${this.activeQuest.target} COINS`;
-            else if(this.activeQuest.obj === 'gems') hudObj.innerText = `0 / ${this.activeQuest.target} GEMS`;
-            else if(this.activeQuest.obj === 'survival') hudObj.innerText = "SURVIVE";
-            else hudObj.innerText = `SURVIVE ${this.activeQuest.dur}s`;
+if(this.activeQuest.obj === 'coins') hudObj.innerText = `0 / ${this.activeQuest.target} COINS`;
+else if(this.activeQuest.obj === 'gems') hudObj.innerText = `0 / ${this.activeQuest.target} GEMS`;
+else if(this.activeQuest.obj === 'survival') hudObj.innerText = "SURVIVE";
+else if(this.activeQuest.id === 34) hudObj.innerText = "ENTER RED ZONE";
+else hudObj.innerText = `SURVIVE ${this.activeQuest.dur}s`;
         } else {
             document.getElementById('quest-obj-hud').innerText = "";
         }
@@ -1878,7 +1879,7 @@ const Game = {
         this.scene.add(this.player.mesh);
         
         // Props Generation
-        if(questId !== 23 && questId !== 34) { // Q23 starts empty, Q34 starts empty
+        if(questId !== 23) { // Q23 starts empty
             const propCount = mapKey === 'studio' ? 25 : mapKey === 'city' ? 60 : mapKey === 'intro' ? 60 : mapKey === 'space' ? 40 : 80;
             this.spawnProps(mapKey, propCount);
         }
@@ -2274,16 +2275,19 @@ const Game = {
                 this.scene.fog = new THREE.Fog(0x000000, 5, 25);
                 document.getElementById('quest-obj-hud').innerText = `SURVIVE ${this.activeQuest.dur}s`;
             } else {
-                return; // Do not process time or enemies yet
-            }
+}
         }
 
-        this.stats.time += dt;
+        if(!(this.activeQuest && this.activeQuest.id === 34 && !this.safetyActive)) {
+    this.stats.time += dt;
 
-        const mins = Math.floor(this.stats.time / 60).toString().padStart(2, '0');
-        const secs = Math.floor(this.stats.time % 60).toString().padStart(2, '0');
+    const mins = Math.floor(this.stats.time / 60).toString().padStart(2, '0');
+    const secs = Math.floor(this.stats.time % 60).toString().padStart(2, '0');
 
-        document.getElementById('hud-center').innerText = `${mins}:${secs}`;
+    document.getElementById('hud-center').innerText = `${mins}:${secs}`;
+} else {
+    document.getElementById('hud-center').innerText = "00:00";
+}
         
         // --- QUEST SPECIFIC UPDATES ---
         
@@ -2679,21 +2683,24 @@ const Game = {
         if(this.activeQuest) {
             let won = false;
             let currentVal = 0;
-            if(this.activeQuest.obj === 'coins') {
-                 currentVal = this.runStats.coins;
-                 if(currentVal >= this.activeQuest.target) won = true;
-                 document.getElementById('quest-obj-hud').innerText = `${currentVal} / ${this.activeQuest.target} COINS`;
-            } else if (this.activeQuest.obj === 'gems') {
-                 currentVal = this.runStats.gems;
-                 if(currentVal >= this.activeQuest.target) won = true;
-                 document.getElementById('quest-obj-hud').innerText = `${currentVal} / ${this.activeQuest.target} GEMS`;
-            } else if (this.activeQuest.obj !== 'survival') {
-                 // Time based
-                 if(this.stats.time >= this.activeQuest.dur) won = true;
-                 document.getElementById('quest-obj-hud').innerText = `${Math.floor(this.stats.time)} / ${this.activeQuest.dur}s`;
-            } else if (this.activeQuest.obj === 'survival') {
-                 document.getElementById('quest-obj-hud').innerText = "SURVIVE (" + Math.floor(this.stats.time) + "s)";
-            }
+            // special: before entering Q34 red zone show instruction
+if(this.activeQuest && this.activeQuest.id === 34 && !this.safetyActive) {
+    document.getElementById('quest-obj-hud').innerText = "ENTER RED ZONE";
+} else if(this.activeQuest.obj === 'coins') {
+    currentVal = this.runStats.coins;
+    if(currentVal >= this.activeQuest.target) won = true;
+    document.getElementById('quest-obj-hud').innerText = `${currentVal} / ${this.activeQuest.target} COINS`;
+} else if (this.activeQuest.obj === 'gems') {
+    currentVal = this.runStats.gems;
+    if(currentVal >= this.activeQuest.target) won = true;
+    document.getElementById('quest-obj-hud').innerText = `${currentVal} / ${this.activeQuest.target} GEMS`;
+} else if (this.activeQuest.obj !== 'survival') {
+    // Time based
+    if(this.stats.time >= this.activeQuest.dur) won = true;
+    document.getElementById('quest-obj-hud').innerText = `${Math.floor(this.stats.time)} / ${this.activeQuest.dur}s`;
+} else if (this.activeQuest.obj === 'survival') {
+    document.getElementById('quest-obj-hud').innerText = "SURVIVE (" + Math.floor(this.stats.time) + "s)";
+}
             
             if(won) {
                 this.gameOver(true);
@@ -2730,7 +2737,7 @@ const Game = {
         
         const desiredEnemies = Math.floor(this.stats.time / spawnRate) + 1;
         if(this.enemies.length < desiredEnemies && this.stats.time > 3) this.spawnEnemy();
-        if(this.coins.length < 10) this.spawnCoin();
+        if(this.coins.length < 10 && !(this.activeQuest && this.activeQuest.id === 34 && !this.safetyActive)) this.spawnCoin();
 
         const p = this.player; const map = this.maps[this.currentMap];
         let moveX = 0; let moveY = 0;
@@ -2747,18 +2754,36 @@ const Game = {
         }
 
         if(moveX || moveY) {
-            // Antigravity check: move in air freely
-            p.vel.x += moveX * p.speed * 4 * dt; 
-            p.vel.z += moveY * p.speed * 4 * dt;
-            p.mesh.rotation.y = Math.atan2(moveX, moveY);
-        }
-        if(p.dashCd > 0) p.dashCd -= dt;
-        
-        p.pos.add(p.vel.clone().multiplyScalar(dt)); 
-        
-        // Friction
-        const frictionFactor = Math.pow(map.friction, dt * 60);
-        p.vel.multiplyScalar(frictionFactor);
+    // Antigravity check: move in air freely
+    p.vel.x += moveX * p.speed * 4 * dt; 
+    p.vel.z += moveY * p.speed * 4 * dt;
+    p.mesh.rotation.y = Math.atan2(moveX, moveY);
+}
+if(p.dashCd > 0) p.dashCd -= dt;
+
+p.pos.add(p.vel.clone().multiplyScalar(dt)); 
+
+// Friction
+const frictionFactor = Math.pow(map.friction, dt * 60);
+p.vel.multiplyScalar(frictionFactor);
+
+// --- minimal player limb animation so movement shows immediately (works in Q34 start) ---
+if(p.limbs) {
+    const mv = p.vel.length();
+    const t = (this.stats.time || 0) * 6;
+    if(mv > 0.05) {
+        p.limbs.legL.rotation.x = Math.sin(t) * 0.6;
+        p.limbs.legR.rotation.x = Math.sin(t + Math.PI) * 0.6;
+        p.limbs.armL.rotation.x = Math.sin(t + Math.PI) * 0.3;
+        p.limbs.armR.rotation.x = Math.sin(t) * 0.3;
+    } else {
+        // relax to neutral when stopped
+        p.limbs.legL.rotation.x *= 0.9;
+        p.limbs.legR.rotation.x *= 0.9;
+        p.limbs.armL.rotation.x *= 0.9;
+        p.limbs.armR.rotation.x *= 0.9;
+    }
+}
         
         if(p.vel.length() > p.speed * 1.5) p.vel.setLength(p.speed * 1.5);
         
