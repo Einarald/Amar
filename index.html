@@ -3232,7 +3232,15 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
 
         // QUEST REWARDS
         if(this.activeQuest) {
-            if(questWin) {
+
+    // ONE PLAY = COMPLETE FIX
+    if(!Game.stats.questCompleted) Game.stats.questCompleted = {};
+    if(!Game.stats.questCompleted[this.activeQuest.id]) {
+        Game.stats.questCompleted[this.activeQuest.id] = true;
+        if(this.activeQuest.id === this.stats.questLevel) this.stats.questLevel++;
+    }
+
+    if(questWin) {
                 document.getElementById('end-title').innerText = "QUEST COMPLETE!";
                 document.getElementById('end-title').style.color = "#00FF00";
                 AudioSys.sfx.quest_win();
@@ -3262,6 +3270,15 @@ document.getElementById('hud-center').innerText = `${mins}:${secs}`;
                     this.stats.questLevel++;
                 }
             } else if (this.activeQuest.obj === 'survival' && (this.activeQuest.id === 10 || this.activeQuest.id === 25 || this.activeQuest.id === 40 || this.activeQuest.id === 50)) {
+
+    // FIX: mark survival quests completed
+    if(!Game.stats.questCompleted[this.activeQuest.id]) {
+        Game.stats.questCompleted[this.activeQuest.id] = true;
+        if(this.activeQuest.id === this.stats.questLevel) {
+            this.stats.questLevel++;
+        }
+    }
+
                  // Level 10, 25, 40 & 50 Logic (Survival Rewards)
                  const t = this.stats.time;
                  let qCoins = 0; let qGems = 0;
